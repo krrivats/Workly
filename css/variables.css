@@ -1,22 +1,22 @@
 /* Workly Design Tokens - Lavender Aurora (Phase 9) */
 
 :root {
-  /* Layout Dimensions */
+  /* Layout Dimensions (Mobile-first compact sizing) */
   --min-touch-target: 44px;
-  --button-action-height: 50px;
-  --header-height: 54px;
-  --bottom-nav-height: 66px;
+  --button-action-height: 48px;
+  --header-height: 48px;
+  --bottom-nav-height: 56px;
   --max-content-width: 480px;
 
-  /* Typography Scale */
+  /* Typography Scale (Polished mobile native scale) */
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, system-ui, sans-serif;
-  --font-size-xs: 0.75rem;       /* 12px */
-  --font-size-sm: 0.8125rem;     /* 13px */
-  --font-size-base: 0.9375rem;   /* 15px */
-  --font-size-md: 1.0625rem;     /* 17px */
-  --font-size-lg: 1.1875rem;     /* 19px */
-  --font-size-xl: 1.5625rem;     /* 25px */
-  --font-size-timer: 2.375rem;    /* 38px */
+  --font-size-xs: 0.71875rem;    /* 11.5px (Secondary/helper: 11-12px) */
+  --font-size-sm: 0.8125rem;     /* 13px (Normal text: 12-14px) */
+  --font-size-base: 0.875rem;    /* 14px (Normal text & buttons: 14-15px) */
+  --font-size-md: 0.9375rem;     /* 15px (Section titles: 14-16px) */
+  --font-size-lg: 1.0625rem;     /* 17px */
+  --font-size-xl: 1.3125rem;     /* 21px (Main page title: 20-22px) */
+  --font-size-timer: 2.125rem;   /* 34px (Large timer: 32-38px) */
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -321,4 +321,20 @@
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.65);
   --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.75);
   --shadow-glow: 0 4px 20px rgba(155, 138, 251, 0.22);
+}
+
+/* Desktop and Tablet Spacious Experience */
+@media (min-width: 481px) {
+  :root {
+    --header-height: 54px;
+    --bottom-nav-height: 64px;
+    --button-action-height: 50px;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.8125rem;
+    --font-size-base: 0.9375rem;
+    --font-size-md: 1.0625rem;
+    --font-size-lg: 1.1875rem;
+    --font-size-xl: 1.5625rem;
+    --font-size-timer: 2.375rem;
+  }
 }

@@ -2018,6 +2018,69 @@ function updateLiveTimerUI() {
   // Update context-aware button states
   updateButtonStates(isUserIn);
   updateGpsStatusUI();
+  updateHomeWfoProgressUI();
+}
+
+/**
+ * Updates the Home screen WFO Progress section (Part 3, 4, 5)
+ * Reuses the exact existing WFO requirement calculation engine (calculateMonthlyWfoRequirement)
+ * and attendance records already used by Statistics.
+ */
+function updateHomeWfoProgressUI() {
+  const completedEl = $('#home-wfo-completed');
+  const remainingEl = $('#home-wfo-remaining');
+  const requiredEl = $('#home-wfo-required');
+  const pctEl = $('#home-wfo-pct');
+  const progressBarEl = $('#home-wfo-progress-bar');
+  const progressTrackEl = $('#home-wfo-card .home-wfo-bar-bg');
+
+  if (!completedEl && !remainingEl && !requiredEl && !pctEl && !progressBarEl) {
+    return;
+  }
+
+  const state = store.getState();
+  const settings = state.settings || {};
+  const dailyRecords = state.dailyRecords || {};
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = getTodayDateKey();
+  const session = state.activeSession;
+  const isSessionTodayWfo = session && session.date === todayKey && session.firstInTimestamp;
+
+  // Count completed WFO days in the current month using exact Statistics criteria
+  let completedDays = 0;
+  for (let dayNum = 1; dayNum <= totalDaysInMonth; dayNum++) {
+    const key = formatDateKey(year, month, dayNum);
+    const rec = dailyRecords[key];
+    const isToday = key === todayKey;
+    const isWfoDay = (rec && (rec.status === 'wfo' || rec.status === 'in' || rec.status === 'out' || (rec.firstInTimestamp && rec.status !== 'holiday' && !rec.status?.startsWith('leave')))) || (isToday && isSessionTodayWfo);
+
+    if (isWfoDay) {
+      completedDays += 1;
+    }
+  }
+
+  // Reuse existing WFO requirement engine
+  const reqResult = calculateMonthlyWfoRequirement(year, month, settings, dailyRecords);
+  const requiredDays = reqResult && typeof reqResult.requiredDays === 'number' ? reqResult.requiredDays : 0;
+
+  // Remaining WFO days: never negative, 0 if completed >= required
+  const remainingDays = Math.max(0, requiredDays - completedDays);
+
+  // Progress percentage
+  const percentage = requiredDays > 0
+    ? Math.min(100, Math.round((completedDays / requiredDays) * 100))
+    : (completedDays > 0 ? 100 : 0);
+
+  if (completedEl) completedEl.textContent = String(completedDays);
+  if (remainingEl) remainingEl.textContent = String(remainingDays);
+  if (requiredEl) requiredEl.textContent = String(requiredDays);
+  if (pctEl) pctEl.textContent = `${percentage}%`;
+  if (progressBarEl) progressBarEl.style.width = `${percentage}%`;
+  if (progressTrackEl) progressTrackEl.setAttribute('aria-valuenow', String(percentage));
 }
 
 /* ==========================================================================
@@ -3964,6 +4027,7 @@ function renderUI(state, prevState) {
  */
 function renderHomeScreen() {
   updateLiveTimerUI();
+  updateHomeWfoProgressUI();
   const session = store.getState().activeSession;
   const todayKey = getTodayDateKey();
   if (session && session.date === todayKey && session.status === 'in' && !liveTimerInterval) {
