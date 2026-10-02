@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#9B8AFB">
+  <meta name="description" content="Workly - Personal work-from-office location and time tracker">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <title>Workly</title>
+  
+  <!-- PWA Manifest & Icons -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- Top Application Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <svg class="header-logo" viewBox="0 0 512 512" aria-hidden="true">
+          <rect x="32" y="32" width="448" height="448" rx="100" fill="#9B8AFB" />
+          <path d="M128 176 L184 336 L256 224 L328 336 L384 176" fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="256" cy="160" r="16" fill="#ffffff" />
+        </svg>
+        <h1 class="header-title">Workly</h1>
+      </div>
+      <div class="header-actions">
+        <button id="header-theme-toggle" class="btn btn-icon" aria-label="Toggle appearance theme" title="Toggle Theme">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-5.4-5.4c0-1.81.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- ================= 1. HOME SCREEN ================= -->
+      <section id="view-home" class="view-screen active" role="tabpanel" aria-labelledby="tab-home">
+        <div class="page-header">
+          <h2 class="page-title">Dashboard</h2>
+          <p class="page-subtitle">Work-from-office location and time overview</p>
+        </div>
+
+        <div class="dashboard-stack">
+
+          <!-- Status Hero Card -->
+          <article class="hero-card">
+            <div class="hero-card-header">
+              <span class="card-subtitle">Current Status</span>
+              <span id="home-status-badge" class="badge badge-neutral">
+                <span class="badge-dot" aria-hidden="true"></span> OUTSIDE OFFICE
+              </span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.375rem;">
+              <div>
+                <span id="home-time-label" class="target-label">Status</span>
+                <div id="home-checkin-time" style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); color: var(--color-text-primary);">Not Checked In</div>
+              </div>
+              <div id="home-detection-mode" style="display: none; font-size: var(--font-size-xs); color: var(--color-text-secondary); background: var(--color-bg-secondary); padding: 2px 8px; border-radius: var(--radius-full); font-weight: 500;">Detected automatically</div>
+            </div>
+
+            <div id="home-gps-status-container" style="display: flex; align-items: center; justify-content: flex-start; margin-bottom: 0.5rem;">
+              <span id="home-gps-status-indicator" style="font-size: 11px; color: var(--color-text-secondary);">📍 Location tracking active</span>
+            </div>
+
+            <div style="text-align: center; padding: 0.75rem 0;">
+              <div id="home-timer-digits" class="timer-large">00:00:00</div>
+              <div class="timer-label">WORKED TODAY</div>
+            </div>
+
+            <div class="target-split-grid">
+              <div class="target-item">
+                <span id="home-target-label" class="target-label">Target</span>
+                <span id="home-target-digits" class="target-value">06:00:00</span>
+              </div>
+              <div class="target-item" style="text-align: center;">
+                <span id="home-completion-label" class="target-label" title="Target Completion">Completion</span>
+                <span id="home-completion-time" class="target-value">--</span>
+              </div>
+              <div class="target-item" style="text-align: right;">
+                <div id="home-target-achieved-sub" style="display: none; font-size: 11px; font-weight: 600; color: var(--color-success-text); line-height: 1.2; margin-bottom: 2px;">Target achieved 00:00:00</div>
+                <span id="home-remaining-label" class="target-label">Remaining</span>
+                <span id="home-remaining-digits" class="target-value" style="color: var(--color-text-secondary);">06:00:00</span>
+              </div>
+            </div>
+
+            <!-- Target Achieved Visual State Banner -->
+            <div id="home-target-achieved-banner" class="target-achieved-banner" style="display: none; margin-top: 0.75rem; padding: 0.625rem 0.75rem; background-color: var(--color-success-subtle); border: 1px solid var(--color-success); border-radius: var(--radius-md); text-align: center;">
+              <span style="font-weight: 700; color: var(--color-success-text); font-size: var(--font-size-sm); display: flex; align-items: center; justify-content: center; gap: 0.375rem;">
+                🟢 TARGET ACHIEVED
+              </span>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 2px; display: block;">
+                You can leave the office.
+              </span>
+            </div>
+          </article>
+
+          <!-- Quick Action Buttons -->
+          <div class="home-action-buttons">
+            <button id="btn-check-in" class="btn btn-primary btn-lg" aria-label="Manual check-in action">
+              <span>I'M IN</span>
+            </button>
+            <button id="btn-check-out" class="btn btn-secondary btn-lg" aria-label="Manual check-out action">
+              <span>I'M LEAVING</span>
+            </button>
+          </div>
+
+          <!-- Quick Status Section: Today's Status -->
+          <article class="card">
+            <div class="card-header">
+              <h3 class="card-title">Today's Status</h3>
+            </div>
+            <div class="quick-status-list">
+              <div class="quick-status-row">
+                <span>First IN</span>
+                <strong id="home-today-first-in">--</strong>
+              </div>
+              <div class="quick-status-row">
+                <span>Last OUT</span>
+                <strong id="home-today-last-out">--</strong>
+              </div>
+              <div class="quick-status-row">
+                <span>WFO Counted</span>
+                <span id="home-today-wfo-counted" class="badge badge-neutral">No</span>
+              </div>
+              <div class="quick-status-row" style="border-top: 1px dashed var(--color-border); padding-top: 0.5rem; margin-top: 0.25rem;">
+                <span>Worked</span>
+                <strong id="home-today-worked">00h 00m</strong>
+              </div>
+              <div class="quick-status-row">
+                <span>Target</span>
+                <strong id="home-today-target">06h 00m</strong>
+              </div>
+              <div class="quick-status-row">
+                <span>Target Status</span>
+                <span id="home-today-target-status" class="badge badge-neutral">Not achieved</span>
+              </div>
+              <div class="quick-status-row" id="home-today-metric-row">
+                <span id="home-today-metric-label">Remaining</span>
+                <strong id="home-today-metric-val">06h 00m</strong>
+              </div>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- ================= 2. CALENDAR SCREEN ================= -->
+      <section id="view-calendar" class="view-screen" hidden role="tabpanel" aria-labelledby="tab-calendar">
+        <div class="page-header">
+          <h2 class="page-title">Calendar</h2>
+          <p class="page-subtitle">Interactive attendance and WFO log</p>
+        </div>
+
+        <article class="card calendar-card">
+          <div class="calendar-month-bar">
+            <button id="btn-cal-prev" class="btn btn-icon btn-sm" aria-label="Previous Month">‹</button>
+            <h3 id="cal-month-title" class="calendar-month-title">September 2026</h3>
+            <button id="btn-cal-next" class="btn btn-icon btn-sm" aria-label="Next Month">›</button>
+          </div>
+
+          <div class="calendar-weekdays">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+
+          <!-- JavaScript generated day cells -->
+          <div id="cal-days-grid" class="calendar-days-grid"></div>
+
+          <div class="calendar-legend-bar">
+            <div class="legend-chip"><span class="legend-color" style="background-color: var(--color-success);"></span>Target Achieved</div>
+            <div class="legend-chip"><span class="legend-color" style="background-color: var(--color-warning);"></span>Target Missed</div>
+            <div class="legend-chip"><span class="legend-color" style="background-color: var(--primary);"></span>Holiday</div>
+            <div class="legend-chip"><span class="legend-color" style="background-color: var(--primary-dark);"></span>Full Leave</div>
+            <div class="legend-chip"><span class="legend-color" style="background-color: var(--warning);"></span>Half Leave</div>
+            <div class="legend-chip"><span class="legend-color" style="background-color: var(--color-text-muted);"></span>Normal</div>
+          </div>
+        </article>
+
+        <!-- Selected Day Detail Card -->
+        <article id="cal-detail-card" class="card day-detail-card">
+          <div class="card-header">
+            <div>
+              <h3 id="cal-detail-date" class="card-title">September 30, 2026</h3>
+              <p id="cal-detail-subtitle" class="card-subtitle">Daily Attendance Breakdown</p>
+            </div>
+            <span id="cal-detail-status" class="badge badge-neutral">Normal</span>
+          </div>
+
+          <!-- Time Interval & Duration (shown if recorded) -->
+          <div id="cal-tracking-section" class="detail-grid">
+            <div class="detail-box">
+              <div class="detail-box-label">First IN</div>
+              <div id="cal-detail-time-in" class="detail-box-value">--</div>
+            </div>
+            <div class="detail-box">
+              <div class="detail-box-label">Last OUT</div>
+              <div id="cal-detail-time-out" class="detail-box-value">--</div>
+            </div>
+            <div class="detail-box">
+              <div class="detail-box-label">Office Time</div>
+              <div id="cal-detail-total" class="detail-box-value">--</div>
+            </div>
+            <div class="detail-box">
+              <div class="detail-box-label">WFO Status</div>
+              <div id="cal-detail-wfo" class="detail-box-value">--</div>
+            </div>
+          </div>
+
+          <!-- Status & Notes Management Form -->
+          <div style="margin-top: 1rem; padding-top: 0.875rem; border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="form-group">
+              <label for="cal-status-select" class="label-text">Day Status</label>
+              <select id="cal-status-select" class="select-control">
+                <option value="normal">Normal</option>
+                <option value="wfo">WFO</option>
+                <option value="holiday">Holiday</option>
+                <option value="leave-full">Full-day Leave</option>
+                <option value="leave-half">Half-day Leave</option>
+              </select>
+            </div>
+
+            <!-- Field for Holiday: Holiday Name -->
+            <div id="cal-field-holiday" class="form-group" style="display: none;">
+              <label for="cal-input-holiday-name" class="label-text">Holiday Name</label>
+              <input id="cal-input-holiday-name" type="text" class="input-control" placeholder="e.g. Gandhi Jayanti">
+            </div>
+
+            <!-- Field for Leave: Leave Reason -->
+            <div id="cal-field-leave" class="form-group" style="display: none;">
+              <label for="cal-input-leave-reason" class="label-text">Leave Reason</label>
+              <input id="cal-input-leave-reason" type="text" class="input-control" placeholder="e.g. Personal work / Medical">
+            </div>
+
+            <!-- Notes field (available for all statuses) -->
+            <div class="form-group">
+              <label for="cal-input-notes" class="label-text">Notes</label>
+              <textarea id="cal-input-notes" class="input-control" rows="2" placeholder="Add notes for this day (e.g. Client meeting in afternoon)..." style="resize: vertical; min-height: 52px; font-family: inherit; font-size: var(--font-size-base);"></textarea>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; gap: 0.75rem; margin-top: 0.25rem;">
+              <button type="button" id="btn-save-cal-day" class="btn btn-primary" style="flex: 2;">Save</button>
+              <button type="button" id="btn-clear-cal-day" class="btn btn-secondary" style="flex: 1;">Clear Status</button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ================= 3. STATISTICS SCREEN ================= -->
+      <section id="view-statistics" class="view-screen" hidden role="tabpanel" aria-labelledby="tab-stats">
+        <div class="page-header">
+          <h2 class="page-title">Statistics</h2>
+          <p class="page-subtitle">WFO analytics and working hours metrics</p>
+        </div>
+
+        <div class="segmented-control">
+          <button id="stats-period-week" class="segmented-item">Week</button>
+          <button id="stats-period-month" class="segmented-item active">Month</button>
+        </div>
+
+        <!-- Period Navigation Bar -->
+        <div class="stats-nav-bar">
+          <button id="btn-stats-prev" class="btn btn-icon btn-sm" aria-label="Previous Period">‹</button>
+          <div class="stats-nav-center">
+            <span id="stats-period-title" class="stats-period-title">September 2026</span>
+            <span id="stats-date-range" class="stats-date-range">1 Sep – 30 Sep 2026</span>
+          </div>
+          <button id="btn-stats-next" class="btn btn-icon btn-sm" aria-label="Next Period">›</button>
+        </div>
+
+        <div class="stats-metrics-grid">
+          <article class="card card-metric">
+            <span class="metric-label">WFO DAYS</span>
+            <div id="stats-metric-wfo-days" class="metric-value">0 / 12</div>
+            <span id="stats-metric-wfo-subtext" class="metric-subtext">Requirement progress</span>
+          </article>
+
+          <article class="card card-metric">
+            <span class="metric-label">TOTAL HOURS</span>
+            <div id="stats-metric-total-hours" class="metric-value">0h 00m</div>
+            <span class="metric-subtext">Logged this period</span>
+          </article>
+
+          <article class="card card-metric">
+            <span class="metric-label">AVERAGE</span>
+            <div id="stats-metric-avg-hours" class="metric-value">0h 00m</div>
+            <span class="metric-subtext">Per WFO day</span>
+          </article>
+
+          <article class="card card-metric">
+            <span class="metric-label">TARGET</span>
+            <div id="stats-metric-target-hours" class="metric-value">6h 00m</div>
+            <span class="metric-subtext">Expected daily</span>
+          </article>
+
+          <article class="card card-metric">
+            <span class="metric-label">EXTRA HOURS</span>
+            <div id="stats-metric-extra-hours" class="metric-value" style="color: var(--color-success-text);">0h 00m</div>
+            <span class="metric-subtext">Overtime logged</span>
+          </article>
+
+          <article class="card card-metric">
+            <span class="metric-label">SHORT HOURS</span>
+            <div id="stats-metric-short-hours" class="metric-value" style="color: var(--color-warning-text);">0h 00m</div>
+            <span class="metric-subtext">Under target</span>
+          </article>
+        </div>
+
+        <!-- Weekly/Monthly Bar Chart Visualization -->
+        <article class="card chart-card">
+          <div class="card-header">
+            <h3 id="stats-chart-title" class="card-title">Daily Hours Breakdown</h3>
+            <span id="stats-chart-badge" class="badge badge-neutral">Target: 6h / day</span>
+          </div>
+
+          <div id="stats-chart-container" class="chart-container">
+            <!-- Dynamically populated -->
+          </div>
+        </article>
+
+        <!-- WFO Progress Section -->
+        <article id="stats-wfo-progress-card" class="card" style="margin-top: 1rem;">
+          <div class="card-header">
+            <h3 class="card-title">WFO Progress</h3>
+            <span id="stats-progress-percent" class="badge badge-info">0%</span>
+          </div>
+          <p id="stats-progress-subtext" class="card-subtitle" style="margin-bottom: 0.5rem;">0 / 12 days completed towards requirement</p>
+          <div class="progress-container">
+            <div class="progress-bar-track">
+              <div id="stats-progress-track" class="progress-bar-fill success" style="width: 0%;"></div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ================= 4. LOCATIONS SCREEN ================= -->
+      <section id="view-locations" class="view-screen" hidden role="tabpanel" aria-labelledby="tab-locations">
+        <div class="page-header">
+          <h2 class="page-title">Locations</h2>
+          <p class="page-subtitle">Manage registered work geofence boundaries</p>
+        </div>
+
+        <!-- Utility Section: Current Location (Section 17 & 18) -->
+        <article class="card" style="margin-bottom: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <h3 class="card-title" style="font-size: var(--font-size-base); margin-bottom: 2px;">Current Location</h3>
+              <p class="card-subtitle" style="margin-bottom: 0;">GPS coordinate utility & accuracy check</p>
+            </div>
+            <button id="btn-get-current-gps" type="button" class="btn btn-secondary btn-sm">
+              <span>📍 Get My Location</span>
+            </button>
+          </div>
+          <div id="current-gps-display" style="display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: var(--font-size-xs); color: var(--color-text-secondary);">
+            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <span>Latitude: <strong id="current-gps-lat" style="color: var(--color-text-primary);">--</strong></span>
+              <span>Longitude: <strong id="current-gps-lng" style="color: var(--color-text-primary);">--</strong></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              <span>Accuracy: <strong id="current-gps-acc" style="color: var(--color-accent); font-weight: 600;">±--m</strong></span>
+              <button id="btn-use-detected-gps" type="button" class="btn btn-primary btn-sm" style="padding: 0.25rem 0.625rem; font-size: var(--font-size-xs);">
+                Use This Location
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <div class="section-header">
+          <h3 class="section-title">Saved Locations</h3>
+          <button id="btn-add-location" class="btn btn-primary btn-sm" aria-label="Add location">
+            <span>+ Add Location</span>
+          </button>
+        </div>
+
+        <!-- Rendered dynamically by app.js -->
+        <div id="locations-list" class="locations-list"></div>
+      </section>
+
+      <!-- ================= 5. SETTINGS SCREEN ================= -->
+      <section id="view-settings" class="view-screen" hidden role="tabpanel" aria-labelledby="tab-settings">
+        <div class="page-header">
+          <h2 class="page-title">Settings</h2>
+          <p class="page-subtitle">Configure rules, tracking options, and storage</p>
+        </div>
+
+        <div class="settings-stack">
+
+          <!-- 1. WORK -->
+          <section class="card">
+            <h3 class="settings-section-header">WORK</h3>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="set-target-hours" class="setting-label">Target average hours</label>
+                <span class="setting-desc">Default daily expectation</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.375rem;">
+                <input id="set-target-hours" type="number" min="1" max="24" step="0.5" class="input-control" value="6" style="width: 80px; text-align: center;" aria-label="Target average hours">
+                <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500;">hours</span>
+              </div>
+            </div>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start;">
+              <span class="setting-label">WFO requirement</span>
+              <div class="radio-group" style="margin-top: 0.375rem;">
+                <label class="chip-option">
+                  <input type="radio" id="set-mode-auto" name="wfo-mode" value="percentage" checked hidden>
+                  <span>Automatic</span>
+                </label>
+                <label class="chip-option">
+                  <input type="radio" id="set-mode-manual" name="wfo-mode" value="manual" hidden>
+                  <span>Manual</span>
+                </label>
+              </div>
+              <p id="set-mode-explanation" class="setting-desc" style="margin-top: 0.375rem;">
+                Required WFO days are calculated from eligible working days.
+              </p>
+              <div id="set-calculated-preview" style="font-size: var(--font-size-xs); color: var(--color-accent); font-weight: 600; margin-top: 0.25rem;">
+                Current calculated requirement: 12 days
+              </div>
+            </div>
+
+            <div id="row-auto-percent" class="setting-row">
+              <div class="setting-info">
+                <label for="set-auto-percent" class="setting-label">WFO percentage</label>
+                <span class="setting-desc">Percentage of eligible working days</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.375rem;">
+                <input id="set-auto-percent" type="number" min="0" max="100" class="input-control" value="60" style="width: 80px; text-align: center;" aria-label="WFO percentage">
+                <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500;">%</span>
+              </div>
+            </div>
+
+            <div id="row-manual-days" class="setting-row" style="display: none;">
+              <div class="setting-info">
+                <label for="set-manual-days" class="setting-label">Required WFO days</label>
+                <span class="setting-desc">Fixed monthly attendance target</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.375rem;">
+                <input id="set-manual-days" type="number" min="0" max="31" class="input-control" value="12" style="width: 80px; text-align: center;" aria-label="Required WFO days">
+                <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500;">days</span>
+              </div>
+            </div>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start;">
+              <span class="setting-label">Working days</span>
+              <span class="setting-desc">Eligible days for WFO calculation</span>
+              <div class="checkbox-group" style="display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem;">
+                <label class="chip-option"><input type="checkbox" class="set-working-day" value="Monday" checked hidden><span>Monday</span></label>
+                <label class="chip-option"><input type="checkbox" class="set-working-day" value="Tuesday" checked hidden><span>Tuesday</span></label>
+                <label class="chip-option"><input type="checkbox" class="set-working-day" value="Wednesday" checked hidden><span>Wednesday</span></label>
+                <label class="chip-option"><input type="checkbox" class="set-working-day" value="Thursday" checked hidden><span>Thursday</span></label>
+                <label class="chip-option"><input type="checkbox" class="set-working-day" value="Friday" checked hidden><span>Friday</span></label>
+                <label class="chip-option"><input type="checkbox" class="set-working-day" value="Saturday" hidden><span>Saturday</span></label>
+                <label class="chip-option"><input type="checkbox" class="set-working-day" value="Sunday" hidden><span>Sunday</span></label>
+              </div>
+            </div>
+
+            <!-- Validation Error Alert Message -->
+            <div id="settings-validation-alert" style="display: none; margin-top: 0.75rem; padding: 0.5rem 0.75rem; background-color: var(--color-error-subtle); color: var(--color-error-text); border: 1px solid var(--color-error); border-radius: var(--radius-md); font-size: var(--font-size-xs);">
+            </div>
+
+            <div style="margin-top: 0.875rem;">
+              <button id="btn-save-settings" type="button" class="btn btn-primary btn-sm" style="width: 100%;">
+                Save Work Settings
+              </button>
+            </div>
+          </section>
+
+          <!-- 2. TRACKING -->
+          <section class="card">
+            <h3 class="settings-section-header">TRACKING</h3>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-label">Automatic tracking</span>
+                <span class="setting-desc">Detect office arrival/departure</span>
+                <div id="settings-gps-status-indicator" style="font-size: 11px; color: var(--color-text-secondary); margin-top: 3px;">📍 Location tracking active</div>
+              </div>
+              <label class="toggle-switch">
+                <input id="set-auto-track" type="checkbox" checked aria-label="Toggle automatic tracking">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-label">Manual tracking</span>
+                <span class="setting-desc">Enable check-in / check-out buttons</span>
+              </div>
+              <label class="toggle-switch">
+                <input id="set-manual-track" type="checkbox" checked aria-label="Toggle manual tracking">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="set-grace-period" class="setting-label">Grace period</label>
+                <span class="setting-desc">Tolerance before tracking begins</span>
+              </div>
+              <select id="set-grace-period" class="select-control" style="width: auto;" aria-label="Grace period">
+                <option value="5">5 minutes</option>
+                <option value="10" selected>10 minutes</option>
+                <option value="15">15 minutes</option>
+              </select>
+            </div>
+          </section>
+
+          <!-- 3. NOTIFICATIONS SETTINGS -->
+          <section class="card">
+            <h3 class="settings-section-header">NOTIFICATIONS</h3>
+
+            <!-- Permission Status & Request Button (Section 1 & 2) -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.875rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--color-border);">
+              <div>
+                <span class="setting-label" style="display: block; font-size: var(--font-size-xs);">Browser Permission</span>
+                <span id="notify-perm-status" class="badge badge-neutral" style="margin-top: 2px;">Not requested</span>
+              </div>
+              <button id="btn-enable-notifications" type="button" class="btn btn-secondary btn-sm">
+                Enable Notifications
+              </button>
+            </div>
+            <div id="notify-perm-alert" style="display: none; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background-color: var(--color-error-subtle); color: var(--color-error-text); border: 1px solid var(--color-error); border-radius: var(--radius-md); font-size: var(--font-size-xs);"></div>
+
+            <!-- Master Notifications Toggle (Section 2) -->
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-label">Master Notifications</span>
+                <span class="setting-desc">Enable all desktop and mobile alerts</span>
+              </div>
+              <label class="toggle-switch">
+                <input id="set-notify-master" type="checkbox" checked aria-label="Toggle all notifications">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Sub-settings: Only shown when Master is ON (Section 2) -->
+            <div id="container-notify-subsettings">
+              <div class="setting-row">
+                <span class="setting-label">Office entry</span>
+                <label class="toggle-switch">
+                  <input id="set-notify-entry" type="checkbox" checked aria-label="Office entry notification">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="setting-row">
+                <span class="setting-label">Office exit</span>
+                <label class="toggle-switch">
+                  <input id="set-notify-exit" type="checkbox" checked aria-label="Office exit notification">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="setting-row">
+                <span class="setting-label">Target achieved</span>
+                <label class="toggle-switch">
+                  <input id="set-notify-target" type="checkbox" checked aria-label="Target achieved notification">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="setting-row" style="flex-wrap: wrap; gap: 0.5rem;">
+                <div class="setting-info">
+                  <span class="setting-label">Time remaining reminder</span>
+                  <span class="setting-desc">Alert before reaching daily goal</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <select id="set-reminder-threshold" class="select-control" style="width: auto; font-size: var(--font-size-xs);" aria-label="Reminder threshold">
+                    <option value="30">30 min remaining</option>
+                    <option value="60" selected>60 min (1 hr) remaining</option>
+                    <option value="90">90 min remaining</option>
+                    <option value="120">120 min (2 hrs) remaining</option>
+                  </select>
+                  <label class="toggle-switch">
+                    <input id="set-notify-reminder" type="checkbox" aria-label="Time remaining reminder notification">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="setting-row" style="flex-wrap: wrap; gap: 0.5rem;">
+                <div class="setting-info">
+                  <span class="setting-label">WFO progress reminder</span>
+                  <span class="setting-desc">Summary of monthly WFO quota</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <select id="set-wfo-reminder-freq" class="select-control" style="width: auto; font-size: var(--font-size-xs);" aria-label="WFO reminder frequency">
+                    <option value="weekly" selected>Once per week</option>
+                    <option value="off">Off</option>
+                  </select>
+                  <label class="toggle-switch">
+                    <input id="set-notify-monthly" type="checkbox" checked aria-label="Monthly WFO reminder">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 4. APPEARANCE SETTINGS -->
+          <section class="card">
+            <h3 class="settings-section-header">APPEARANCE</h3>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="set-theme-select" class="setting-label">Theme</label>
+              </div>
+              <select id="set-theme-select" class="select-control" style="width: auto;" aria-label="Select theme">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+          </section>
+
+          <!-- 5. DATA & BACKUP -->
+          <section class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.375rem;">
+              <h3 class="settings-section-header" style="margin-bottom: 0;">DATA & BACKUP</h3>
+              <span id="storage-status-text" class="badge badge-success" style="font-size: 11px;">IndexedDB Active</span>
+            </div>
+            <p class="setting-desc" style="margin-bottom: 0.875rem;">Data stored locally on this device.</p>
+
+            <!-- Dynamic Data Summary (Section 20 & 21) -->
+            <div style="background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: 0.75rem; margin-bottom: 1rem; border: 1px solid var(--color-border); font-size: var(--font-size-xs);">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center; margin-bottom: 0.625rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.625rem;">
+                <div>
+                  <div style="color: var(--color-text-secondary); font-size: 10px; text-transform: uppercase;">Attendance</div>
+                  <strong id="backup-stat-attendance" style="font-size: var(--font-size-base); color: var(--color-text-primary);">0</strong>
+                </div>
+                <div>
+                  <div style="color: var(--color-text-secondary); font-size: 10px; text-transform: uppercase;">Locations</div>
+                  <strong id="backup-stat-locations" style="font-size: var(--font-size-base); color: var(--color-text-primary);">0</strong>
+                </div>
+                <div>
+                  <div style="color: var(--color-text-secondary); font-size: 10px; text-transform: uppercase;">Calendar</div>
+                  <strong id="backup-stat-calendar" style="font-size: var(--font-size-base); color: var(--color-text-primary);">0</strong>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.375rem; color: var(--color-text-secondary);">
+                <div style="display: flex; justify-content: space-between;">
+                  <span>Earliest Record:</span>
+                  <strong id="backup-stat-earliest" style="color: var(--color-text-primary);">No attendance records yet</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>Latest Record:</span>
+                  <strong id="backup-stat-latest" style="color: var(--color-text-primary);">No attendance records yet</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>Local Data Size:</span>
+                  <strong id="backup-stat-size" style="color: var(--color-text-primary);">~0 KB</strong>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.625rem;">
+              <div style="display: flex; gap: 0.625rem;">
+                <button id="btn-export-backup" type="button" class="btn btn-secondary" style="flex: 1;">
+                  <span>💾 Export Backup</span>
+                </button>
+                <button id="btn-import-backup" type="button" class="btn btn-secondary" style="flex: 1;">
+                  <span>📂 Import Backup</span>
+                </button>
+                <input type="file" id="input-import-backup" accept=".json,application/json" style="display: none;">
+              </div>
+
+              <button id="btn-export-csv" type="button" class="btn btn-secondary" style="width: 100%;">
+                <span>📊 Export Attendance CSV</span>
+              </button>
+
+              <div style="border-top: 1px solid var(--color-border); padding-top: 0.75rem; margin-top: 0.25rem;">
+                <button id="btn-reset-all-data" type="button" class="btn btn-danger" style="width: 100%;">
+                  <span>⚠️ Reset All Data</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Modal: Location Add/Edit Form -->
+    <div id="modal-location-form" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="title-loc-modal">
+      <div class="bottom-sheet" style="max-height: 90vh; overflow-y: auto;">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+          <h3 id="title-loc-modal" class="sheet-title">Add Location</h3>
+          <button id="btn-close-loc-modal" class="btn btn-icon" aria-label="Close modal">✕</button>
+        </div>
+        <form id="form-location">
+          <!-- Validation Alert Box -->
+          <div id="loc-validation-alert" style="display: none; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background-color: var(--color-error-subtle); color: var(--color-error-text); border: 1px solid var(--color-error); border-radius: var(--radius-md); font-size: var(--font-size-xs);"></div>
+
+          <div class="form-group">
+            <label for="input-loc-name" class="label-text">Location Name *</label>
+            <input id="input-loc-name" type="text" class="input-control" placeholder="e.g. Office HQ" required>
+          </div>
+
+          <div class="form-group">
+            <label for="select-loc-type" class="label-text">Location Type</label>
+            <select id="select-loc-type" class="select-control">
+              <option value="office">🏢 Office</option>
+              <option value="home">🏠 Home</option>
+              <option value="client">💼 Client</option>
+              <option value="gym">🏋️ Gym</option>
+              <option value="custom">📍 Custom</option>
+            </select>
+          </div>
+
+          <!-- GPS Current Location Capture inside Modal -->
+          <div style="margin-bottom: 0.75rem;">
+            <button type="button" id="btn-use-gps-coords" class="btn btn-secondary btn-sm" style="width: 100%;">
+              <span>📍 Use My Current Location</span>
+            </button>
+            <div id="gps-coords-accuracy" style="display: none; font-size: var(--font-size-xs); color: var(--color-accent); font-weight: 600; margin-top: 0.375rem; text-align: center;"></div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="input-loc-lat" class="label-text">Latitude *</label>
+              <input id="input-loc-lat" type="number" step="any" min="-90" max="90" class="input-control" value="37.7749" required>
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="input-loc-lng" class="label-text">Longitude *</label>
+              <input id="input-loc-lng" type="number" step="any" min="-180" max="180" class="input-control" value="-122.4194" required>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="input-loc-radius" class="label-text">Radius (meters)</label>
+              <div style="display: flex; gap: 0.375rem;">
+                <select id="select-loc-radius-preset" class="select-control" style="width: 95px;" aria-label="Radius Preset">
+                  <option value="50">50 m</option>
+                  <option value="100" selected>100 m</option>
+                  <option value="150">150 m</option>
+                  <option value="200">200 m</option>
+                  <option value="300">300 m</option>
+                  <option value="500">500 m</option>
+                  <option value="custom">Custom</option>
+                </select>
+                <input id="input-loc-radius" type="number" min="20" max="5000" class="input-control" value="100" style="flex: 1; text-align: center;" aria-label="Radius in meters">
+              </div>
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="input-loc-target" class="label-text">Target (0 = None)</label>
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <input id="input-loc-target" type="number" min="0" max="24" step="0.5" class="input-control" value="6" style="text-align: center;">
+                <span style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">hrs</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="select-loc-priority" class="label-text">Priority</label>
+              <select id="select-loc-priority" class="select-control">
+                <option value="Highest">Highest</option>
+                <option value="High">High</option>
+                <option value="Normal" selected>Normal</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="select-loc-grace" class="label-text">Grace Period</label>
+              <select id="select-loc-grace" class="select-control">
+                <option value="0">0 min</option>
+                <option value="5">5 min</option>
+                <option value="10" selected>10 min</option>
+                <option value="15">15 min</option>
+                <option value="20">20 min</option>
+                <option value="30">30 min</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row" style="padding: 0.5rem 0; margin-top: 0.25rem;">
+            <div class="setting-info">
+              <span class="setting-label">Active Status</span>
+              <span class="setting-desc">Consider this location for tracking</span>
+            </div>
+            <label class="toggle-switch">
+              <input id="checkbox-loc-active" type="checkbox" checked aria-label="Location active">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+            <button type="button" id="btn-cancel-loc-modal" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+            <button type="submit" id="btn-save-loc-form" class="btn btn-primary" style="flex: 1;">Save Location</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Confirm Delete Location -->
+    <div id="modal-confirm-delete-loc" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="title-delete-loc-modal">
+      <div class="bottom-sheet">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+          <h3 id="title-delete-loc-modal" class="sheet-title" style="color: var(--color-error-text);">Delete Location?</h3>
+        </div>
+        <p id="desc-delete-loc-modal" style="font-size: var(--font-size-base); color: var(--color-text-secondary); margin-bottom: 1.25rem;">
+          Are you sure you want to delete this saved location? This action cannot be undone.
+        </p>
+        <div style="display: flex; gap: 0.75rem;">
+          <button id="btn-cancel-delete-loc" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+          <button id="btn-confirm-delete-loc" class="btn btn-danger" style="flex: 1;">Yes, Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Import Backup Preview -->
+    <div id="modal-import-preview" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="title-import-preview-modal">
+      <div class="bottom-sheet">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+          <h3 id="title-import-preview-modal" class="sheet-title">Workly Backup Preview</h3>
+          <button id="btn-close-import-preview" class="btn btn-icon" aria-label="Close modal">✕</button>
+        </div>
+        <div style="background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: 0.875rem; margin-bottom: 1rem; border: 1px solid var(--color-border); font-size: var(--font-size-sm);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--color-text-secondary);">Created:</span>
+            <strong id="import-preview-date">--</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--color-text-secondary);">Attendance records:</span>
+            <strong id="import-preview-attendance">0</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--color-text-secondary);">Locations:</span>
+            <strong id="import-preview-locations">0</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--color-text-secondary);">Calendar records:</span>
+            <strong id="import-preview-calendar">0</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--color-text-secondary);">Settings:</span>
+            <strong id="import-preview-settings">Available</strong>
+          </div>
+        </div>
+        <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: 1.25rem;">
+          Restore backup? This will replace your current Workly data with the selected backup.
+        </p>
+        <div style="display: flex; gap: 0.75rem;">
+          <button id="btn-cancel-import-preview" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+          <button id="btn-confirm-import-restore" class="btn btn-primary" style="flex: 1;">Restore</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Export CSV Range Selection -->
+    <div id="modal-export-csv" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="title-export-csv-modal">
+      <div class="bottom-sheet">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+          <h3 id="title-export-csv-modal" class="sheet-title">Export Attendance CSV</h3>
+          <button id="btn-close-export-csv" class="btn btn-icon" aria-label="Close modal">✕</button>
+        </div>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="select-csv-range" class="label-text">Select Date Range</label>
+          <select id="select-csv-range" class="select-control">
+            <option value="current-month" selected>Current Month</option>
+            <option value="previous-month">Previous Month</option>
+            <option value="all">All Data</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <button id="btn-cancel-export-csv" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+          <button id="btn-confirm-download-csv" class="btn btn-primary" style="flex: 1;">Download CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Confirm Delete All Data -->
+    <div id="modal-confirm-reset" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="title-reset-modal">
+      <div class="bottom-sheet">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+          <h3 id="title-reset-modal" class="sheet-title" style="color: var(--color-error-text);">RESET WORKLY</h3>
+        </div>
+        <p style="font-size: var(--font-size-base); color: var(--color-text-secondary); margin-bottom: 0.5rem;">
+          This permanently deletes all Workly data stored on this device.
+        </p>
+        <p style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: 1.25rem;">
+          Export a backup first if you want to keep your data.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 0.625rem;">
+          <button id="btn-reset-export-first" class="btn btn-secondary" style="width: 100%;">💾 Export Backup First</button>
+          <div style="display: flex; gap: 0.75rem;">
+            <button id="btn-cancel-reset" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+            <button id="btn-confirm-reset" class="btn btn-danger" style="flex: 1;">Reset Everything</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fixed Mobile Bottom Navigation Bar -->
+    <nav class="bottom-nav" role="tablist" aria-label="Main Navigation">
+      <button id="tab-home" class="nav-item active" data-screen="home" role="tab" aria-selected="true" aria-controls="view-home" aria-label="Home">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="nav-label">Home</span>
+      </button>
+
+      <button id="tab-calendar" class="nav-item" data-screen="calendar" role="tab" aria-selected="false" aria-controls="view-calendar" aria-label="Calendar">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span class="nav-label">Calendar</span>
+      </button>
+
+      <button id="tab-stats" class="nav-item" data-screen="statistics" role="tab" aria-selected="false" aria-controls="view-statistics" aria-label="Statistics">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <span class="nav-label">Statistics</span>
+      </button>
+
+      <button id="tab-locations" class="nav-item" data-screen="locations" role="tab" aria-selected="false" aria-controls="view-locations" aria-label="Locations">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span class="nav-label">Locations</span>
+      </button>
+
+      <button id="tab-settings" class="nav-item" data-screen="settings" role="tab" aria-selected="false" aria-controls="view-settings" aria-label="Settings">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span class="nav-label">Settings</span>
+      </button>
+    </nav>
+  </div>
+
+  <script src="js/app.js" defer></script>
+</body>
+</html>
