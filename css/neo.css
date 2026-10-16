@@ -582,3 +582,118 @@ body { background: var(--shell-outer-bg); font-family: var(--font-family); }
 .shortcut-row code { font: 500 0.68rem var(--font-mono); color: var(--neo-cyan); word-break: break-all; }
 .shortcut-steps { margin: 8px 0 0 18px; padding: 0; font-size: 0.74rem; color: var(--neo-mute); display: grid; gap: 4px; }
 .shortcut-steps b { color: var(--neo-text); }
+
+/* ==========================================================================
+   FIT-TO-SCREEN (iPhone): less scrolling, no zoom
+   ========================================================================== */
+
+/* iPhone zooms into any field smaller than 16px — keep all inputs at 16px */
+input, select, textarea, .input-control, .select-control { font-size: 16px !important; }
+
+/* Screen name is already in the bottom bar */
+.page-header { display: none !important; }
+.main-content { padding-top: 10px; padding-bottom: calc(var(--bottom-nav-height) + 16px + env(safe-area-inset-bottom, 0px)); }
+.dashboard-stack { gap: 8px; }
+.card, .hero-card { padding: 12px; margin-bottom: 0; }
+.view-screen > .card + .card,
+.view-screen > * + .card { margin-top: 8px; }
+
+/* Home */
+.neo-hero { grid-template-columns: 124px 1fr; gap: 12px; padding: 12px; }
+.neo-ring { width: 124px; height: 124px; }
+.neo-ring-center .timer-large { font-size: 1.08rem; }
+.neo-kv { gap: 5px; }
+.home-action-buttons .btn-lg { height: 46px; }
+.neo-wfo-head { margin-bottom: 8px; }
+.neo-wfo-big { font-size: 1.75rem; }
+.neo-segs { margin-bottom: 8px; }
+.home-wfo-breakdown { margin-top: 8px; padding: 6px 10px; }
+.neo-pace { padding: 8px 12px; font-size: 0.74rem; }
+.neo-planner-card { padding: 10px 12px; }
+.neo-today summary { padding: 10px 12px; }
+
+/* Calendar */
+.calendar-card { padding: 10px 10px 8px; }
+.calendar-month-bar { margin-bottom: 4px; }
+.calendar-weekdays { margin-bottom: 4px; }
+.calendar-days-grid { gap: 4px; }
+.calendar-cell { aspect-ratio: auto !important; height: 38px; min-height: 0; padding: 0; }
+.calendar-legend-bar { margin-top: 6px; gap: 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.calendar-legend-bar::-webkit-scrollbar { display: none; }
+.day-detail-card .card-header { margin-bottom: 6px; align-items: center; }
+.cal-date-title { font-size: 0.95rem; }
+.cal-times {
+  display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center;
+  font-size: 0.72rem; color: var(--neo-mute);
+  padding: 6px 10px; border-radius: 10px; border: 1px solid var(--neo-line);
+  background: color-mix(in srgb, var(--neo-bg) 50%, transparent);
+}
+.cal-times b { font: 600 0.78rem var(--font-mono); color: var(--neo-text); }
+.cal-wfo { margin-left: auto; font-weight: 600; }
+.cal-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.cal-form .form-group { margin: 0; gap: 0; }
+.cal-form .input-control { height: 40px; padding: 0 12px; }
+.neo-quick button { min-height: 38px; }
+.cal-btns { display: flex; gap: 8px; }
+.cal-btns .btn { height: 42px; }
+.cal-btns .btn-primary { flex: 2; }
+.cal-btns .btn-secondary { flex: 1; }
+
+/* Statistics */
+.stats-top-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.stats-top-row .stats-nav-bar { flex: 1; margin: 0; padding: 4px; min-width: 0; }
+.stats-top-row .segmented-control { margin: 0; flex: none; width: 128px; }
+.stats-top-row .segmented-item { padding: 6px 0; font-size: 0.74rem; }
+.stats-period-title { font-size: 0.85rem; }
+.stats-date-range { font-size: 0.64rem; }
+.stats-metrics-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; margin-bottom: 8px; }
+.stats-metrics-grid .card-metric { padding: 8px !important; }
+.stats-metrics-grid .metric-label { font-size: 0.58rem; letter-spacing: 0.08em; }
+.stats-metrics-grid .metric-value { font-size: 1rem !important; margin: 2px 0 0; white-space: nowrap; }
+.stats-metrics-grid .metric-subtext { display: none; }
+.chart-card .card-header { margin-bottom: 6px; }
+.chart-container { height: 110px !important; }
+#stats-wfo-progress-card .card-header { margin-bottom: 4px; }
+#stats-wfo-progress-card .card-subtitle { font-size: 0.7rem; margin-bottom: 6px !important; }
+
+/* Locations */
+.section-header { margin: 10px 0 8px; }
+
+/* Settings: folding sections */
+.settings-stack { gap: 8px; }
+.acc .acc-head { cursor: pointer; display: flex; align-items: center; gap: 8px; margin: 0; -webkit-tap-highlight-color: transparent; }
+.acc .acc-head::after { content: "▾"; margin-left: auto; color: var(--neo-mute); transition: transform 0.2s; }
+.acc:not(.collapsed) .acc-head { margin-bottom: 8px; }
+.acc:not(.collapsed) .acc-head::after { transform: rotate(180deg); }
+.acc.collapsed > :not(.acc-head) { display: none !important; }
+.acc .acc-head .card-title { margin: 0; }
+.acc .acc-head .settings-section-header { margin: 0; }
+
+/* Planner sheet: one screen */
+.planner-sheet { padding-top: 10px; }
+.planner-sheet .sheet-header { margin-bottom: 8px; }
+.planner-months { margin-bottom: 8px; }
+.planner-months .segmented-item { padding: 7px 0; }
+.planner-now {
+  display: flex; justify-content: space-between; gap: 6px;
+  padding: 8px 12px; border-radius: 12px; background: var(--neo-panel); border: 1px solid var(--neo-line);
+  font-size: 0.74rem; color: var(--neo-mute);
+}
+.planner-now > span { display: flex; align-items: baseline; gap: 4px; }
+.planner-now b { font-size: 1.2rem; color: var(--neo-text); }
+.planner-math { margin: 8px 0; padding: 6px 10px; font-size: 0.68rem; }
+.planner-moves { gap: 6px; }
+.planner-move { padding: 8px 12px; gap: 1px; }
+.planner-whatif { margin-top: 8px; grid-template-columns: 40px 1fr 40px; padding: 6px; }
+.planner-whatif .btn-icon { height: 36px; }
+.pw-mid { font-size: 0.8rem; }
+.planner-h { margin: 10px 0 6px; }
+.planner-dates { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.planner-date {
+  display: grid; gap: 2px; text-align: left; cursor: pointer; font: inherit; color: var(--neo-text);
+  padding: 8px; font-size: 0.74rem;
+}
+.planner-date small { font-size: 0.6rem; line-height: 1.2; }
+.planner-foot { margin: 8px 0 0; }
+.acc .acc-head .card-title { font: 600 0.72rem var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--neo-violet); }
+.acc .acc-head .badge { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

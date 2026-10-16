@@ -2340,7 +2340,7 @@ function renderPlannerSheet() {
     ? plan.moves.map((m) => `
         <button type="button" class="planner-move${m.best ? ' is-best' : ''}" data-planner-pick="${m.halves}">
           <span class="pm-main"><b>${halfText(m.halves)}</b> → office <b>${plan.required} → ${m.required}</b></span>
-          <span class="pm-sub">${leaveText(m.halves)} · saves ${m.saved} office day${m.saved > 1 ? 's' : ''}${m.best ? ' · ⭐ best value' : ''}</span>
+          <span class="pm-sub">${leaveText(m.halves)} · saves ${m.saved}${m.best ? ' · ⭐ best' : ''}</span>
         </button>`).join('')
     : `<div class="planner-note">${plan.officeNow === 0
         ? `🎉 You already have all ${plan.required} office days for ${MONTH_NAMES[month]}.`
@@ -2348,54 +2348,44 @@ function renderPlannerSheet() {
 
   const ranked = rankHalfDayDates(plan, st.dailyRecords);
   const pick = Math.max(plannerWhatIf, 0);
-  const datesHTML = ranked.slice(0, Math.max(pick, 3)).map((r, i) => `
-      <div class="planner-date${i < pick ? ' is-picked' : ''}">
-        <span><b>${plannerDateLabel(r.date)}</b><small>${r.why}</small></span>
-        <button type="button" class="btn btn-sm btn-secondary" data-planner-mark="${formatDateKey(r.date.getFullYear(), r.date.getMonth(), r.date.getDate())}">Mark ½</button>
-      </div>`).join('');
+  const show = ranked.slice(0, Math.max(pick, 3));
+  const datesHTML = show.map((r, i) => `
+      <button type="button" class="planner-date${i < pick ? ' is-picked' : ''}" data-planner-goto="${formatDateKey(r.date.getFullYear(), r.date.getMonth(), r.date.getDate())}">
+        <b>${plannerDateLabel(r.date)}</b><small>${r.why}</small>
+      </button>`).join('');
 
   body.innerHTML = `
     <div class="planner-now">
-      <div><span class="neo-lbl">${MONTH_NAMES[month]} target</span><b class="mono">${plan.required}</b><small>office days</small></div>
-      <div><span class="neo-lbl">Done</span><b class="mono">${plan.completed}</b><small>so far</small></div>
-      <div><span class="neo-lbl">Free days</span><b class="mono">${plan.freeDays.length}</b><small>work days left</small></div>
+      <span><b class="mono">${plan.required}</b> ${MONTH_NAMES[month]} target</span>
+      <span><b class="mono">${plan.completed}</b> done</span>
+      <span><b class="mono">${plan.freeDays.length}</b> free days</span>
     </div>
-    <p class="planner-math">${plan.eligible} × ${plan.pct}% = <b>${raw}</b> → ${plan.required}.
-      Each half-day cuts <b>${perHalf}</b>. ${plan.rawGap > 0 ? `Need <b>${Math.round(plan.rawGap * 100) / 100}</b> less to reach ${plan.required - 1}.` : ''}</p>
+    <p class="planner-math">${plan.eligible} × ${plan.pct}% = <b>${raw}</b> → ${plan.required} · each ½-day −<b>${perHalf}</b>${plan.rawGap > 0 ? ` · need −<b>${Math.round(plan.rawGap * 100) / 100}</b> for ${plan.required - 1}` : ''}</p>
 
-    <h4 class="planner-h">Best moves</h4>
     <div class="planner-moves">${movesHTML}</div>
 
-    <h4 class="planner-h">What if I take…</h4>
     <div class="planner-whatif">
       <button type="button" class="btn btn-icon" data-planner-step="-1" aria-label="Fewer half-days">−</button>
       <div class="pw-mid">
-        <b class="mono">${plannerWhatIf}</b> ${plannerWhatIf === 1 ? 'half-day' : 'half-days'}
+        <span>What if <b class="mono">${plannerWhatIf}</b> half-day${plannerWhatIf === 1 ? '' : 's'}?</span>
         <small>${wiRaw} → <b>${wiReq}</b> office days · ${plannerWhatIf ? leaveText(plannerWhatIf) : 'no leave'}</small>
       </div>
       <button type="button" class="btn btn-icon" data-planner-step="1" aria-label="More half-days">+</button>
     </div>
-    ${wiFits ? '' : `<div class="planner-note tone-bad">⚠️ Not enough free days: you'd need ${plan.officeLeft(wiReq)} office days but only ${plan.freeDays.length - plannerWhatIf} free days remain.</div>`}
+    ${wiFits ? '' : `<div class="planner-note tone-bad">⚠️ Not enough free days: need ${plan.officeLeft(wiReq)} office days, only ${plan.freeDays.length - plannerWhatIf} free.</div>`}
 
-    <h4 class="planner-h">Best dates for a half-day</h4>
+    <div class="planner-h">Best dates for ½-day · tap to open in Calendar</div>
     <div class="planner-dates">${datesHTML || '<div class="planner-note">No free work days left.</div>'}</div>
-    ${pick > 0 && wiFits ? `<button type="button" class="btn btn-primary btn-full" id="btn-planner-apply" style="margin-top:10px">Mark top ${halfText(pick)} as ½ leave</button>` : ''}
-
-    <p class="planner-foot">ℹ️ A half-day day is not counted as an office day. Do the other half from home, and check your company's leave rules.</p>`;
+    <p class="planner-foot">💡 Suggestions only — nothing is saved. Mark the day yourself in Calendar (½ = ½ leave + ½ WFH).</p>`;
 }
 
-async function plannerMarkHalfDays(keys) {
-  const before = store.getState();
-  const { year, month } = plannerMonth();
-  const reqBefore = calculateMonthlyWfoRequirement(year, month, before.settings, before.dailyRecords).requiredDays;
-  for (const key of keys) {
-    await saveCalendarDayDetails(key, { status: 'leave-half', leaveType: 'half-day', leaveReason: 'Planned half-day' });
-  }
-  const after = store.getState();
-  const reqAfter = calculateMonthlyWfoRequirement(year, month, after.settings, after.dailyRecords).requiredDays;
-  showToast(`Marked ${keys.length} half-day${keys.length > 1 ? 's' : ''} · Required ${reqBefore} → ${reqAfter}`, 'success', 4000);
-  plannerWhatIf = 0;
-  renderPlannerSheet();
+/** Opens a suggested date in the Calendar (does not save anything) */
+function plannerOpenInCalendar(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  closeModal('modal-planner');
+  store.setState({ calendar: { year: y, month: m - 1, selectedDay: d } });
+  navigateToScreen('calendar');
+  setTimeout(() => $('#cal-detail-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
 }
 
 function setupPlannerActions() {
@@ -2421,20 +2411,38 @@ function setupPlannerActions() {
     if (stp) { plannerWhatIf += Number(stp.dataset.plannerStep); renderPlannerSheet(); return; }
     const pk = e.target.closest('[data-planner-pick]');
     if (pk) { plannerWhatIf = Number(pk.dataset.plannerPick); renderPlannerSheet(); return; }
-    const mk = e.target.closest('[data-planner-mark]');
-    if (mk) { await plannerMarkHalfDays([mk.dataset.plannerMark]); return; }
-    if (e.target.closest('#btn-planner-apply')) {
-      const st = store.getState();
-      const { year, month } = plannerMonth();
-      const plan = buildWfoPlan(year, month, st.settings, st.dailyRecords, st.activeSession);
-      const keys = rankHalfDayDates(plan, st.dailyRecords).slice(0, plannerWhatIf)
-        .map((r) => formatDateKey(r.date.getFullYear(), r.date.getMonth(), r.date.getDate()));
-      await plannerMarkHalfDays(keys);
-    }
+    const go = e.target.closest('[data-planner-goto]');
+    if (go) plannerOpenInCalendar(go.dataset.plannerGoto);
   });
 }
 
 window.WorklyPlanner = { buildWfoPlan, rankHalfDayDates };
+
+/** Settings: each section folds, one open at a time, so the screen fits without long scrolling */
+function setupSettingsAccordion() {
+  const sections = $$('#view-settings .settings-stack > section.card');
+  sections.forEach((sec) => {
+    const h = sec.querySelector('.settings-section-header');
+    if (!h) return;
+    const head = h.parentElement === sec ? h : h.parentElement;
+    head.classList.add('acc-head');
+    head.setAttribute('role', 'button');
+    head.setAttribute('tabindex', '0');
+    sec.classList.add('acc', 'collapsed');
+    head.setAttribute('aria-expanded', 'false');
+    const toggle = () => {
+      const opening = sec.classList.contains('collapsed');
+      sections.forEach((o) => { o.classList.add('collapsed'); o.querySelector('.acc-head')?.setAttribute('aria-expanded', 'false'); });
+      if (opening) {
+        sec.classList.remove('collapsed');
+        head.setAttribute('aria-expanded', 'true');
+        setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      }
+    };
+    head.addEventListener('click', (e) => { if (!e.target.closest('button, input, select, a')) toggle(); });
+    head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  });
+}
 
 /** Fills the Home ring from the timer text (HH:MM:SS) against today's target */
 function updateHomeRing() {
@@ -2484,6 +2492,7 @@ async function initApp() {
   setupLocationActions();
   setupSettingsActions();
   setupPlannerActions();
+  setupSettingsAccordion();
   setupServiceWorker();
 
   // 5. Subscribe UI updates to state changes
@@ -4767,7 +4776,8 @@ function renderCalendarScreen(calendarState, dailyRecords = {}, settings = {}) {
   const selRecord = dailyRecords[selDateKey] || null;
 
   if (detailDate) {
-    detailDate.textContent = `${selectedDay} ${MONTH_NAMES[month]} ${year}`;
+    const dd = new Date(year, month, selectedDay);
+    detailDate.textContent = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dd.getDay()]}, ${selectedDay} ${MONTH_NAMES[month].slice(0, 3)} ${year}`;
   }
 
   if (detailStatus) {
@@ -4800,7 +4810,7 @@ function renderCalendarScreen(calendarState, dailyRecords = {}, settings = {}) {
       detailWfo.textContent = '✓ Counted';
       detailWfo.style.color = 'var(--color-success-text)';
     } else {
-      detailWfo.textContent = 'Not Counted';
+      detailWfo.textContent = 'Not counted';
       detailWfo.style.color = 'var(--color-text-secondary)';
     }
   }

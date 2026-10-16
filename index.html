@@ -193,36 +193,24 @@
         <article id="cal-detail-card" class="card day-detail-card">
           <div class="card-header">
             <div>
-              <h3 id="cal-detail-date" class="card-title">September 30, 2026</h3>
-              <p id="cal-detail-subtitle" class="card-subtitle">Daily Attendance Breakdown</p>
+              <h3 id="cal-detail-date" class="card-title cal-date-title">September 30, 2026</h3>
+              <p id="cal-detail-subtitle" class="card-subtitle sr-only">Daily Attendance Breakdown</p>
             </div>
             <span id="cal-detail-status" class="badge badge-neutral">Normal</span>
           </div>
 
           <!-- Time Interval & Duration (shown if recorded) -->
-          <div id="cal-tracking-section" class="detail-grid">
-            <div class="detail-box">
-              <div class="detail-box-label">First IN</div>
-              <div id="cal-detail-time-in" class="detail-box-value">--</div>
-            </div>
-            <div class="detail-box">
-              <div class="detail-box-label">Last OUT</div>
-              <div id="cal-detail-time-out" class="detail-box-value">--</div>
-            </div>
-            <div class="detail-box">
-              <div class="detail-box-label">Office Time</div>
-              <div id="cal-detail-total" class="detail-box-value">--</div>
-            </div>
-            <div class="detail-box">
-              <div class="detail-box-label">WFO Status</div>
-              <div id="cal-detail-wfo" class="detail-box-value">--</div>
-            </div>
+          <div id="cal-tracking-section" class="cal-times">
+            <span>IN <b id="cal-detail-time-in">--</b></span>
+            <span>OUT <b id="cal-detail-time-out">--</b></span>
+            <span>⏱ <b id="cal-detail-total">--</b></span>
+            <span id="cal-detail-wfo" class="cal-wfo">--</span>
           </div>
 
           <!-- Status & Notes Management Form -->
-          <div style="margin-top: 1rem; padding-top: 0.875rem; border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="cal-form">
             <div class="form-group">
-              <span class="label-text">Mark this day</span>
+              
               <div id="cal-quick-marks" class="neo-quick" role="group" aria-label="Day status">
                 <button type="button" data-mark="wfo">🏢 WFO</button>
                 <button type="button" data-mark="holiday">🎉 Holiday</button>
@@ -241,24 +229,24 @@
 
             <!-- Field for Holiday: Holiday Name -->
             <div id="cal-field-holiday" class="form-group" style="display: none;">
-              <label for="cal-input-holiday-name" class="label-text">Holiday Name</label>
-              <input id="cal-input-holiday-name" type="text" class="input-control" placeholder="e.g. Gandhi Jayanti">
+              <label for="cal-input-holiday-name" class="sr-only">Holiday Name</label>
+              <input id="cal-input-holiday-name" type="text" class="input-control" placeholder="Holiday name (e.g. Diwali)">
             </div>
 
             <!-- Field for Leave: Leave Reason -->
             <div id="cal-field-leave" class="form-group" style="display: none;">
-              <label for="cal-input-leave-reason" class="label-text">Leave Reason</label>
-              <input id="cal-input-leave-reason" type="text" class="input-control" placeholder="e.g. Personal work / Medical">
+              <label for="cal-input-leave-reason" class="sr-only">Leave Reason</label>
+              <input id="cal-input-leave-reason" type="text" class="input-control" placeholder="Leave reason (optional)">
             </div>
 
             <!-- Notes field (available for all statuses) -->
             <div class="form-group">
-              <label for="cal-input-notes" class="label-text">Notes</label>
-              <textarea id="cal-input-notes" class="input-control" rows="2" placeholder="Add notes for this day (e.g. Client meeting in afternoon)..." style="resize: vertical; min-height: 52px; font-family: inherit; font-size: var(--font-size-base);"></textarea>
+              <label for="cal-input-notes" class="sr-only">Notes</label>
+              <input id="cal-input-notes" type="text" class="input-control" placeholder="Note (optional)">
             </div>
 
             <!-- Action buttons -->
-            <div style="display: flex; gap: 0.75rem; margin-top: 0.25rem;">
+            <div class="cal-btns">
               <button type="button" id="btn-save-cal-day" class="btn btn-primary" style="flex: 2;">Save · updates Home</button>
               <button type="button" id="btn-clear-cal-day" class="btn btn-secondary" style="flex: 1;">Clear</button>
             </div>
@@ -273,19 +261,19 @@
           <p class="page-subtitle">WFO analytics and working hours metrics</p>
         </div>
 
-        <div class="segmented-control">
-          <button id="stats-period-week" class="segmented-item">Week</button>
-          <button id="stats-period-month" class="segmented-item active">Month</button>
-        </div>
-
-        <!-- Period Navigation Bar -->
-        <div class="stats-nav-bar">
-          <button id="btn-stats-prev" class="btn btn-icon btn-sm" aria-label="Previous Period">‹</button>
-          <div class="stats-nav-center">
-            <span id="stats-period-title" class="stats-period-title">September 2026</span>
-            <span id="stats-date-range" class="stats-date-range">1 Sep – 30 Sep 2026</span>
+        <div class="stats-top-row">
+          <div class="stats-nav-bar">
+            <button id="btn-stats-prev" class="btn btn-icon btn-sm" aria-label="Previous Period">‹</button>
+            <div class="stats-nav-center">
+              <span id="stats-period-title" class="stats-period-title">September 2026</span>
+              <span id="stats-date-range" class="stats-date-range">1 Sep – 30 Sep 2026</span>
+            </div>
+            <button id="btn-stats-next" class="btn btn-icon btn-sm" aria-label="Next Period">›</button>
           </div>
-          <button id="btn-stats-next" class="btn btn-icon btn-sm" aria-label="Next Period">›</button>
+          <div class="segmented-control">
+            <button id="stats-period-week" class="segmented-item">Week</button>
+            <button id="stats-period-month" class="segmented-item active">Month</button>
+          </div>
         </div>
 
         <div class="stats-metrics-grid">
@@ -339,7 +327,7 @@
         </article>
 
         <!-- WFO Progress Section -->
-        <article id="stats-wfo-progress-card" class="card" style="margin-top: 1rem;">
+        <article id="stats-wfo-progress-card" class="card">
           <div class="card-header">
             <h3 class="card-title">WFO Progress</h3>
             <span id="stats-progress-percent" class="badge badge-info">0%</span>
@@ -361,7 +349,7 @@
         </div>
 
         <!-- Utility Section: Current Location (Section 17 & 18) -->
-        <article class="card" style="margin-bottom: 1rem;">
+        <article class="card">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
             <div>
               <h3 class="card-title" style="font-size: var(--font-size-base); margin-bottom: 2px;">Current Location</h3>
