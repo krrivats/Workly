@@ -558,3 +558,27 @@ body { background: var(--shell-outer-bg); font-family: var(--font-family); }
 }
 .planner-note.tone-bad { margin-top: 8px; border-color: color-mix(in srgb, var(--neo-rose) 40%, transparent); background: var(--color-error-subtle); }
 .planner-foot { margin: 12px 0 4px; font-size: 0.68rem; color: var(--neo-mute); }
+
+/* ---------- Backups ---------- */
+.backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.backup-actions #btn-export-backup { grid-column: 1 / -1; height: 46px; }
+.backup-status { margin: 6px 0 0; font-size: 0.72rem; color: var(--neo-mute); }
+.backup-list { display: grid; gap: 6px; }
+.backup-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 12px; border: 1px solid var(--neo-line); background: var(--neo-panel);
+}
+.backup-item > span:first-child { display: grid; font-size: 0.78rem; }
+.backup-item small { color: var(--neo-mute); font-size: 0.66rem; }
+.backup-item-btns { display: flex; gap: 6px; }
+
+/* ---------- iPhone Shortcut links ---------- */
+.shortcut-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 8px 10px; margin-bottom: 6px; border-radius: 12px;
+  border: 1px solid var(--neo-line); background: var(--neo-panel);
+}
+.shortcut-row > div { display: grid; gap: 2px; min-width: 0; }
+.shortcut-row code { font: 500 0.68rem var(--font-mono); color: var(--neo-cyan); word-break: break-all; }
+.shortcut-steps { margin: 8px 0 0 18px; padding: 0; font-size: 0.74rem; color: var(--neo-mute); display: grid; gap: 4px; }
+.shortcut-steps b { color: var(--neo-text); }

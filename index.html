@@ -185,7 +185,7 @@
             <div class="legend-chip"><span class="legend-color lg-low"></span>Short</div>
             <div class="legend-chip"><span class="legend-color lg-hol"></span>Holiday</div>
             <div class="legend-chip"><span class="legend-color lg-lv"></span>Leave</div>
-            <div class="legend-chip"><span class="legend-color lg-half"></span>Half leave</div>
+            <div class="legend-chip"><span class="legend-color lg-half"></span>½ leave + ½ WFH</div>
           </div>
         </article>
 
@@ -235,7 +235,7 @@
                 <option value="wfo">WFO</option>
                 <option value="holiday">Holiday</option>
                 <option value="leave-full">Full-day Leave</option>
-                <option value="leave-half">Half-day Leave</option>
+                <option value="leave-half">Half-day (½ leave + ½ WFH)</option>
               </select>
             </div>
 
@@ -676,15 +676,23 @@
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 0.625rem;">
-              <div style="display: flex; gap: 0.625rem;">
-                <button id="btn-export-backup" type="button" class="btn btn-secondary" style="flex: 1;">
-                  <span>💾 Export Backup</span>
+              <div class="backup-actions">
+                <button id="btn-export-backup" type="button" class="btn btn-primary">
+                  <span>💾 Backup now</span>
                 </button>
-                <button id="btn-import-backup" type="button" class="btn btn-secondary" style="flex: 1;">
-                  <span>📂 Import Backup</span>
+                <button id="btn-share-backup" type="button" class="btn btn-secondary">
+                  <span>📤 Share file</span>
+                </button>
+                <button id="btn-import-backup" type="button" class="btn btn-secondary">
+                  <span>📥 Import file</span>
                 </button>
                 <input type="file" id="input-import-backup" accept=".json,application/json" style="display: none;">
               </div>
+              <button id="btn-pick-backup-folder" type="button" class="btn btn-secondary" style="width: 100%; display: none;">
+                <span>📁 Choose auto-save folder (computer)</span>
+              </button>
+              <p id="backup-auto-status" class="backup-status">Auto-backup is on.</p>
+              <div id="backup-list" class="backup-list"></div>
 
               <button id="btn-export-csv" type="button" class="btn btn-secondary" style="width: 100%;">
                 <span>📊 Export Attendance CSV</span>
@@ -696,6 +704,30 @@
                 </button>
               </div>
             </div>
+          </section>
+
+          <!-- iPhone auto check-in via Shortcuts -->
+          <section class="card" id="shortcut-section">
+            <div class="settings-section-header">
+              <h3 class="card-title">📲 iPhone auto check-in</h3>
+            </div>
+            <p class="setting-desc" style="margin-bottom: 10px;">
+              iPhone browsers can't watch your location in the background. Use a Shortcuts automation:
+              when you arrive or leave the office, it opens one of these links and Workly marks IN / OUT.
+            </p>
+            <div class="shortcut-row">
+              <div><span class="neo-lbl">Arrive link</span><code id="shortcut-url-in"></code></div>
+              <button type="button" class="btn btn-sm btn-secondary" data-copy="shortcut-url-in">Copy</button>
+            </div>
+            <div class="shortcut-row">
+              <div><span class="neo-lbl">Leave link</span><code id="shortcut-url-out"></code></div>
+              <button type="button" class="btn btn-sm btn-secondary" data-copy="shortcut-url-out">Copy</button>
+            </div>
+            <ol class="shortcut-steps">
+              <li>Shortcuts app → <b>Automation</b> → <b>+</b> → <b>Arrive</b> → pick your office → <b>Run Immediately</b>.</li>
+              <li>Action: <b>Open URLs</b> → paste the <b>Arrive link</b>.</li>
+              <li>Make one more with <b>Leave</b> and the <b>Leave link</b>.</li>
+            </ol>
           </section>
 
         </div>

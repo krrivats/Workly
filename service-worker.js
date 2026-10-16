@@ -1,6 +1,6 @@
 /* Workly Service Worker - Offline Cache & PWA Support (Phase 8) */
 
-const CACHE_NAME = 'workly-cache-v5';
+const CACHE_NAME = 'workly-cache-v6';
 
 const ASSETS_TO_CACHE = [
   './',

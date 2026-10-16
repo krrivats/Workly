@@ -1835,7 +1835,8 @@ function updateLiveTimerUI() {
     const detectionModeEl = $('#home-detection-mode');
     if (detectionModeEl) {
       const isAuto = session.mode === 'auto' || session.source === 'auto';
-      detectionModeEl.textContent = isAuto ? 'Detected automatically' : 'Checked in manually';
+      const isShortcut = session.source === 'shortcut';
+      detectionModeEl.textContent = isShortcut ? '📲 iPhone Shortcut' : isAuto ? 'Detected automatically' : 'Checked in manually';
       detectionModeEl.style.display = 'block';
     }
 
@@ -2513,6 +2514,10 @@ async function initApp() {
 
   // Run storage health check silently
   runStorageHealthCheck();
+
+  // iPhone Shortcuts deep links
+  renderShortcutLinks();
+  await handleShortcutAction();
 }
 
 /**
@@ -3811,9 +3816,10 @@ function setupSettingsActions() {
 
   if (exportBackupBtn) {
     exportBackupBtn.addEventListener('click', () => {
-      exportBackupFile();
+      backupNow();
     });
   }
+  setupBackupExtras();
 
   if (importBackupBtn && importInput) {
     importBackupBtn.addEventListener('click', () => {
@@ -3985,6 +3991,241 @@ function exportBackupFile() {
   }, 100);
 
   showToast(`Backup exported: ${filename}`, 'success');
+}
+
+
+/* ==========================================================================
+   ONE-TAP BACKUPS
+   - "Backup now" saves a copy inside the app instantly (no dialog).
+   - Auto-backup saves today's copy after every change (keeps 14 days).
+   - On a computer (Chrome/Edge) you can pick a folder once; then every
+     backup is also written there as a .json file without asking again.
+   - "Share / Save file" opens the share sheet (Files, WhatsApp, Drive...).
+   ========================================================================== */
+
+const BACKUPS_KEY = 'workly_backups';
+const FOLDER_KEY = 'workly_backup_folder';
+const MAX_AUTO = 14;
+const MAX_MANUAL = 10;
+let autoBackupTimer = null;
+let backupListCache = [];
+
+function backupFileName(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `Workly_Backup_${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}.json`;
+}
+
+async function loadBackupList() {
+  try {
+    const list = await loadData(BACKUPS_KEY);
+    backupListCache = Array.isArray(list) ? list : [];
+  } catch (e) {
+    backupListCache = [];
+  }
+  return backupListCache;
+}
+
+async function storeBackupSnapshot(kind = 'auto') {
+  const backup = generateBackupData();
+  const now = new Date();
+  const list = await loadBackupList();
+  const dayKey = getTodayDateKey(now);
+  const entry = {
+    id: kind === 'auto' ? `auto-${dayKey}` : `manual-${now.getTime()}`,
+    kind,
+    at: now.toISOString(),
+    records: Object.keys(backup.data.dailyRecords || {}).length,
+    backup
+  };
+  let next = list.filter((b) => b.id !== entry.id);
+  next.unshift(entry);
+  const autos = next.filter((b) => b.kind === 'auto').slice(0, MAX_AUTO);
+  const manuals = next.filter((b) => b.kind === 'manual').slice(0, MAX_MANUAL);
+  next = [...autos, ...manuals].sort((a, b) => (a.at < b.at ? 1 : -1));
+  await saveData(BACKUPS_KEY, next);
+  backupListCache = next;
+  renderBackupList();
+  return entry;
+}
+
+function scheduleAutoBackup() {
+  if (autoBackupTimer) clearTimeout(autoBackupTimer);
+  autoBackupTimer = setTimeout(() => {
+    autoBackupTimer = null;
+    storeBackupSnapshot('auto').catch((e) => console.warn('[Workly] Auto-backup failed:', e));
+  }, 1500);
+}
+
+async function getBackupFolder() {
+  try {
+    return await loadData(FOLDER_KEY);
+  } catch (e) {
+    return null;
+  }
+}
+
+/** Writes the backup file into the chosen folder (computers with Chrome/Edge only) */
+async function writeBackupToFolder(backup, filename) {
+  const dir = await getBackupFolder();
+  if (!dir || typeof dir.getFileHandle !== 'function') return false;
+  try {
+    let perm = await dir.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await dir.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return false;
+    const fh = await dir.getFileHandle(filename, { create: true });
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify(backup, null, 2));
+    await w.close();
+    return dir.name || true;
+  } catch (e) {
+    console.warn('[Workly] Folder write failed:', e);
+    return false;
+  }
+}
+
+async function backupNow() {
+  try {
+    const entry = await storeBackupSnapshot('manual');
+    const folder = await writeBackupToFolder(entry.backup, backupFileName(new Date(entry.at)));
+    showToast(folder ? `Backup saved in app + folder "${folder === true ? 'chosen' : folder}"` : 'Backup saved ✓ Tap Share to send it anywhere', 'success', 3500);
+  } catch (e) {
+    showToast('Backup failed. Try "Share / Save file".', 'error');
+  }
+}
+
+async function shareBackup(backup = generateBackupData(), date = new Date()) {
+  const filename = backupFileName(date);
+  const json = JSON.stringify(backup, null, 2);
+  try {
+    const file = new File([json], filename, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Workly backup', text: filename });
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return; // user closed the share sheet
+  }
+  // Fallback: normal download
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
+  showToast(`Downloaded ${filename}`, 'success');
+}
+
+function renderBackupList() {
+  const box = $('#backup-list');
+  const status = $('#backup-auto-status');
+  const list = backupListCache;
+  if (status) {
+    const lastAuto = list.find((b) => b.kind === 'auto');
+    status.textContent = lastAuto
+      ? `✅ Auto-backup on · last ${new Date(lastAuto.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${list.length} saved`
+      : '✅ Auto-backup on · first copy is saved after your next change';
+  }
+  if (!box) return;
+  if (!list.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="neo-lbl" style="margin:4px 0 6px">Saved backups</div>` + list.slice(0, 8).map((b) => `
+    <div class="backup-item">
+      <span><b>${new Date(b.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b>
+      <small>${b.kind === 'auto' ? 'Auto' : 'Manual'} · ${b.records} days</small></span>
+      <span class="backup-item-btns">
+        <button type="button" class="btn btn-sm btn-secondary" data-backup-share="${b.id}" aria-label="Share this backup">📤</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-backup-restore="${b.id}">Restore</button>
+      </span>
+    </div>`).join('');
+}
+
+async function setupBackupExtras() {
+  // Ask the browser to keep our data (helps on iPhone)
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* ignore */ }
+
+  const shareBtn = $('#btn-share-backup');
+  if (shareBtn) shareBtn.addEventListener('click', () => shareBackup());
+
+  const folderBtn = $('#btn-pick-backup-folder');
+  if (folderBtn && 'showDirectoryPicker' in window) {
+    folderBtn.style.display = '';
+    const refresh = async () => {
+      const dir = await getBackupFolder();
+      folderBtn.querySelector('span').textContent = dir ? `📁 Auto-save folder: ${dir.name} (change)` : '📁 Choose auto-save folder (computer)';
+    };
+    refresh();
+    folderBtn.addEventListener('click', async () => {
+      try {
+        const dir = await window.showDirectoryPicker({ id: 'workly-backups', mode: 'readwrite' });
+        await saveData(FOLDER_KEY, dir);
+        await refresh();
+        showToast(`Backups will also save to "${dir.name}"`, 'success');
+      } catch (e) { /* cancelled */ }
+    });
+  }
+
+  const box = $('#backup-list');
+  if (box) box.addEventListener('click', (e) => {
+    const r = e.target.closest('[data-backup-restore]');
+    const sh = e.target.closest('[data-backup-share]');
+    const id = (r || sh)?.dataset.backupRestore || (r || sh)?.dataset.backupShare;
+    const entry = backupListCache.find((b) => b.id === id);
+    if (!entry) return;
+    if (r) { pendingImportBackup = entry.backup; showImportPreviewModal(entry.backup); }
+    if (sh) shareBackup(entry.backup, new Date(entry.at));
+  });
+
+  await loadBackupList();
+  renderBackupList();
+
+  // Auto-backup whenever attendance, settings or places change
+  store.subscribe((st, prev) => {
+    if (st.dailyRecords !== prev.dailyRecords || st.settings !== prev.settings || st.locations !== prev.locations) {
+      scheduleAutoBackup();
+    }
+  });
+}
+
+/* ==========================================================================
+   iPHONE SHORTCUTS: ?action=in / ?action=out
+   ========================================================================== */
+
+function shortcutBaseUrl() {
+  return `${location.origin}${location.pathname}`;
+}
+
+function renderShortcutLinks() {
+  const inEl = $('#shortcut-url-in');
+  const outEl = $('#shortcut-url-out');
+  if (inEl) inEl.textContent = `${shortcutBaseUrl()}?action=in`;
+  if (outEl) outEl.textContent = `${shortcutBaseUrl()}?action=out`;
+  $$('[data-copy]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async () => {
+      const text = $(`#${btn.dataset.copy}`)?.textContent || '';
+      try { await navigator.clipboard.writeText(text); showToast('Link copied', 'success'); }
+      catch (e) { showToast('Copy failed — press and hold the link to copy', 'warning'); }
+    });
+  });
+}
+
+async function handleShortcutAction() {
+  const params = new URLSearchParams(location.search);
+  const action = (params.get('action') || '').toLowerCase();
+  if (action !== 'in' && action !== 'out') return;
+  // Remove the action from the address so a reload doesn't repeat it
+  history.replaceState(null, '', `${location.pathname}${location.hash || ''}`);
+  const loc = (store.getState().locations || []).find((l) => l.type === 'office' && l.active !== false);
+  const where = loc ? { locationId: loc.id, locationName: loc.name } : {};
+  if (action === 'in') {
+    const ok = await recordAttendanceIn({ source: 'shortcut', ...where });
+    showToast(ok ? '📲 Checked IN by iPhone Shortcut' : 'Already checked in', ok ? 'success' : 'info', 3500);
+  } else {
+    const ok = await recordAttendanceOut({ source: 'shortcut', ...where });
+    showToast(ok ? '📲 Checked OUT by iPhone Shortcut' : 'You were not checked in', ok ? 'success' : 'info', 3500);
+  }
 }
 
 /**
@@ -4545,7 +4786,7 @@ function renderCalendarScreen(calendarState, dailyRecords = {}, settings = {}) {
       detailStatus.textContent = selRecord.leaveReason ? `Leave: ${selRecord.leaveReason}` : 'Full-day Leave';
       detailStatus.className = 'badge badge-purple';
     } else if (selRecord.status === 'leave-half') {
-      detailStatus.textContent = selRecord.leaveReason ? `Leave (½): ${selRecord.leaveReason}` : 'Half-day Leave';
+      detailStatus.textContent = selRecord.leaveReason ? `½ leave + ½ WFH: ${selRecord.leaveReason}` : '½ leave + ½ WFH';
       detailStatus.className = 'badge badge-orange';
     }
   }
