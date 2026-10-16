@@ -1,6 +1,6 @@
 /* Workly Service Worker - Offline Cache & PWA Support (Phase 8) */
 
-const CACHE_NAME = 'workly-cache-v2';
+const CACHE_NAME = 'workly-cache-v3';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -50,33 +50,21 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Stale-while-revalidate strategy for local static assets
+// Fetch Event - Network-first so new versions show at once; cache is the offline fallback
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
-
-  // Ignore non-http/https schemes (e.g. chrome-extension://)
-  if (!event.request.url.startsWith('http')) return;
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // Background network fetch to revalidate and update cache
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // If offline and request is not in cache, return fallback if possible
-          return cachedResponse;
-        });
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request, { ignoreSearch: true })
+        .then((cached) => cached || caches.match('./index.html')))
   );
 });

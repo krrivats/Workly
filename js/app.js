@@ -204,6 +204,12 @@ function isDaySelectedWorkingDay(date, workingDays = []) {
 /**
  * Calculates raw and rounded WFO requirement directly from numeric inputs
  */
+function isWfoRecord(rec) {
+  if (!rec || !rec.status) return !!(rec && rec.firstInTimestamp);
+  if (rec.status === 'holiday' || rec.status === 'normal' || String(rec.status).startsWith('leave')) return false;
+  return rec.status === 'wfo' || rec.status === 'in' || rec.status === 'out' || !!rec.firstInTimestamp;
+}
+
 function calculateWfoFromCounts(workingDaysCount, holidaysCount = 0, fullLeaveCount = 0, halfLeaveCount = 0, percentage = 60) {
   const eligibleWorkingDays = Math.max(0, workingDaysCount - holidaysCount - fullLeaveCount - (0.5 * halfLeaveCount));
   const rawWfoDays = eligibleWorkingDays * (percentage / 100);
@@ -2056,7 +2062,7 @@ function updateHomeWfoProgressUI() {
     const key = formatDateKey(year, month, dayNum);
     const rec = dailyRecords[key];
     const isToday = key === todayKey;
-    const isWfoDay = (rec && (rec.status === 'wfo' || rec.status === 'in' || rec.status === 'out' || (rec.firstInTimestamp && rec.status !== 'holiday' && !rec.status?.startsWith('leave')))) || (isToday && isSessionTodayWfo);
+    const isWfoDay = isWfoRecord(rec) || (isToday && isSessionTodayWfo && !rec);
 
     if (isWfoDay) {
       completedDays += 1;
@@ -2074,6 +2080,21 @@ function updateHomeWfoProgressUI() {
   const percentage = requiredDays > 0
     ? Math.min(100, Math.round((completedDays / requiredDays) * 100))
     : (completedDays > 0 ? 100 : 0);
+
+  const breakdownEl = $('#home-wfo-breakdown');
+  if (breakdownEl) {
+    if (reqResult.mode === 'manual') {
+      breakdownEl.textContent = `Manual target: ${requiredDays} days this month`;
+    } else {
+      const pct = getEffectiveWorkSettings(settings, year, month).wfoPercentage ?? 60;
+      const parts = [`${reqResult.workingDaysCount} work days`];
+      if (reqResult.holidaysCount) parts.push(`${reqResult.holidaysCount} holiday${reqResult.holidaysCount > 1 ? 's' : ''}`);
+      if (reqResult.fullLeaveCount) parts.push(`${reqResult.fullLeaveCount} leave`);
+      if (reqResult.halfLeaveCount) parts.push(`${reqResult.halfLeaveCount} half-leave`);
+      const raw = Math.round(reqResult.rawWfoDays * 10) / 10;
+      breakdownEl.textContent = `${parts.join(' − ')} = ${reqResult.eligibleWorkingDays} × ${pct}% = ${raw} → ${requiredDays}`;
+    }
+  }
 
   if (completedEl) completedEl.textContent = String(completedDays);
   if (remainingEl) remainingEl.textContent = String(remainingDays);
@@ -2607,7 +2628,7 @@ function setupCalendarActions() {
         newMonth = 11;
         newYear -= 1;
       }
-      store.setState({ calendar: { ...calendar, year: newYear, month: newMonth } });
+      store.setState({ calendar: { ...calendar, year: newYear, month: newMonth, selectedDay: Math.min(calendar.selectedDay, new Date(newYear, newMonth + 1, 0).getDate()) } });
     });
   }
 
@@ -2620,7 +2641,7 @@ function setupCalendarActions() {
         newMonth = 0;
         newYear += 1;
       }
-      store.setState({ calendar: { ...calendar, year: newYear, month: newMonth } });
+      store.setState({ calendar: { ...calendar, year: newYear, month: newMonth, selectedDay: Math.min(calendar.selectedDay, new Date(newYear, newMonth + 1, 0).getDate()) } });
     });
   }
 
@@ -2699,6 +2720,7 @@ async function saveCalendarDayDetails(dateKey, details = {}) {
   const existingRecord = dailyRecords[dateKey] || {};
 
   const updatedRecord = {
+    ...existingRecord,
     date: dateKey,
     status: details.status || existingRecord.status || 'normal',
     notes: details.notes !== undefined ? details.notes : (existingRecord.notes || ''),
@@ -3963,7 +3985,7 @@ function setupServiceWorker() {
   if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./service-worker.js')
-        .then((reg) => console.log('[Workly] SW registered:', reg.scope))
+        .then((reg) => { console.log('[Workly] SW registered:', reg.scope); reg.update(); })
         .catch((err) => console.warn('[Workly] SW failed:', err));
     });
   }
@@ -4085,7 +4107,7 @@ function renderCalendarScreen(calendarState, dailyRecords = {}, settings = {}) {
         } else if (record.status === 'leave-half') {
           statusClass = 'status-orange';
           indicatorHTML = `<span class="cell-symbol" title="Half Leave">½</span>`;
-        } else if (record.status === 'wfo' || record.status === 'in' || record.status === 'out' || (record.firstInTimestamp && record.status !== 'holiday' && !record.status?.startsWith('leave'))) {
+        } else if (isWfoRecord(record)) {
           const sec = record.totalSeconds || (record.firstInTimestamp && record.lastOutTimestamp ? Math.floor((record.lastOutTimestamp - record.firstInTimestamp) / 1000) : targetPerDay);
           if (sec >= targetPerDay) {
             statusClass = 'status-green';
@@ -4234,7 +4256,7 @@ function renderStatsScreen(statsState, dailyRecords = {}, settings = {}) {
       const key = formatDateKey(curDate.getFullYear(), curDate.getMonth(), curDate.getDate());
       const rec = dailyRecords[key];
 
-      const isWfoDay = rec && (rec.status === 'wfo' || rec.status === 'in' || rec.status === 'out' || (rec.firstInTimestamp && rec.status !== 'holiday' && !rec.status?.startsWith('leave')));
+      const isWfoDay = isWfoRecord(rec);
 
       let daySec = 0;
       if (isWfoDay) {
@@ -4283,7 +4305,7 @@ function renderStatsScreen(statsState, dailyRecords = {}, settings = {}) {
       }).join('');
     }
 
-    const weekTargetDays = 5;
+    const weekTargetDays = (getEffectiveWorkSettings(settings, year, month).workingDays || []).length || 5;
     const weekProgressPct = Math.min(100, Math.round((wfoCount / weekTargetDays) * 100));
     if (progressPercent) progressPercent.textContent = `${weekProgressPct}%`;
     if (progressTrack) progressTrack.style.width = `${weekProgressPct}%`;
@@ -4313,7 +4335,7 @@ function renderStatsScreen(statsState, dailyRecords = {}, settings = {}) {
     for (let dayNum = 1; dayNum <= totalDaysInMonth; dayNum++) {
       const key = formatDateKey(year, month, dayNum);
       const rec = dailyRecords[key];
-      const isWfoDay = rec && (rec.status === 'wfo' || rec.status === 'in' || rec.status === 'out' || (rec.firstInTimestamp && rec.status !== 'holiday' && !rec.status?.startsWith('leave')));
+      const isWfoDay = isWfoRecord(rec);
 
       if (isWfoDay) {
         wfoCount += 1;

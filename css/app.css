@@ -825,3 +825,12 @@
   background-color: var(--surface-hover);
   border: 1px solid var(--border);
 }
+
+/* WFO math line: shows how holidays/leaves change the requirement */
+.home-wfo-breakdown {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
