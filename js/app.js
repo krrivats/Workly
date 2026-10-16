@@ -2026,6 +2026,7 @@ function updateLiveTimerUI() {
   updateGpsStatusUI();
   updateHomeWfoProgressUI();
   updateHomeRing();
+  renderPlannerTeaser();
   const headerDate = $('#header-date');
   if (headerDate) {
     const d = new Date();
@@ -2145,7 +2146,7 @@ function updateHomeWfoProgressUI() {
     if (st === 'holiday') holidays++;
     else if (st === 'leave-full' || st === 'full-day-leave') leaves++;
     else if (st === 'leave-half' || st === 'half-day-leave') halves++;
-    const blocked = st === 'holiday' || st === 'leave-full' || st === 'full-day-leave';
+    const blocked = st === 'holiday' || (st || '').startsWith('leave') || st === 'full-day-leave' || st === 'half-day-leave';
     if (!blocked && (dayNum > now.getDate() || (dayNum === now.getDate() && !todayDone))) workDaysLeft++;
   }
 
@@ -2186,6 +2187,253 @@ function updateHomeWfoProgressUI() {
     paceEl.style.display = msg ? 'flex' : 'none';
   }
 }
+
+
+/* ==========================================================================
+   SMART PLANNER — fewest office days using half-day leaves
+   Rule used by the app: required = round((work days − holidays − leaves − 0.5 × half-days) × %)
+   with x.5 rounding DOWN. Each half-day removes 0.5 × % from the raw number,
+   so a well-placed half-day can drop the requirement by a full office day.
+   ========================================================================== */
+
+let plannerMonthOffset = 0;
+let plannerWhatIf = 0;
+
+function plannerMonth(offset = plannerMonthOffset) {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  return { year: d.getFullYear(), month: d.getMonth() };
+}
+
+function buildWfoPlan(year, month, settings = {}, dailyRecords = {}, activeSession = null) {
+  const req = calculateMonthlyWfoRequirement(year, month, settings, dailyRecords);
+  const eff = getEffectiveWorkSettings(settings, year, month);
+  const pct = eff.wfoPercentage ?? 60;
+  const base = { year, month, pct, required: req.requiredDays, raw: req.rawWfoDays };
+  if (req.mode === 'manual') return { ...base, manual: true, moves: [], freeDays: [] };
+
+  const now = new Date();
+  const todayKey = getTodayDateKey(now);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  let completed = 0;
+  const freeDays = [];
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(year, month, day);
+    const key = formatDateKey(year, month, day);
+    const rec = dailyRecords[key];
+    const sessionToday = key === todayKey && activeSession && activeSession.date === todayKey && activeSession.firstInTimestamp;
+    if (isWfoRecord(rec) || (sessionToday && !rec)) { completed++; continue; }
+    if (!isDaySelectedWorkingDay(date, eff.workingDays)) continue;
+    if (date.getTime() < todayStart) continue;          // past days can't be planned
+    if (rec && rec.status && rec.status !== 'normal') continue; // already holiday / leave
+    freeDays.push(date);
+  }
+
+  const eligible = req.eligibleWorkingDays;
+  const reqWith = (halves) => customRoundWfo(Math.max(0, eligible - 0.5 * halves) * (pct / 100));
+  const officeLeft = (r) => Math.max(0, r - completed);
+  const fits = (r, halves) => officeLeft(r) <= freeDays.length - halves;
+
+  // Smallest number of half-days for each lower requirement (max 3 steps)
+  const moves = [];
+  let last = req.requiredDays;
+  for (let k = 1; k <= freeDays.length && moves.length < 3; k++) {
+    const r = reqWith(k);
+    if (r < last) {
+      if (!fits(r, k)) break;
+      moves.push({ halves: k, required: r, saved: req.requiredDays - r, officeLeft: officeLeft(r) });
+      last = r;
+      if (officeLeft(r) === 0) break;
+    }
+  }
+  moves.forEach((m) => { m.ratio = m.saved / (m.halves * 0.5); });
+  const best = moves.reduce((a, m) => (!a || m.ratio > a.ratio + 1e-9 ? m : a), null);
+  if (best) best.best = true;
+
+  // Distance to the next drop on the raw number
+  const nextTarget = req.requiredDays - 0.5; // raw must be <= R - 0.5 to round to R - 1
+  const rawGap = Math.max(0, req.rawWfoDays - nextTarget);
+
+  return { ...base, eligible, completed, freeDays, moves, best, reqWith, fits, officeLeft, rawGap,
+           officeNow: officeLeft(req.requiredDays) };
+}
+
+/** Rank free days for a half-day: Fri/Mon first (long weekends), then days next to holidays/leaves */
+function rankHalfDayDates(plan, dailyRecords = {}) {
+  const near = (date, delta) => {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + delta);
+    const st = dailyRecords[formatDateKey(d.getFullYear(), d.getMonth(), d.getDate())]?.status;
+    return st === 'holiday' || (st || '').startsWith('leave');
+  };
+  return plan.freeDays
+    .map((date) => {
+      const wd = date.getDay();
+      let score = 0;
+      const why = [];
+      if (wd === 5) { score += 3; why.push('Friday → long weekend'); }
+      if (wd === 1) { score += 3; why.push('Monday → long weekend'); }
+      if (near(date, -1) || near(date, 1)) { score += 2; why.push('next to a holiday/leave'); }
+      return { date, score, why: why[0] || 'free work day' };
+    })
+    .sort((a, b) => b.score - a.score || a.date - b.date);
+}
+
+function plannerDateLabel(date) {
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]} ${date.getDate()} ${MONTH_NAMES[date.getMonth()].slice(0, 3)}`;
+}
+
+function halfText(n) {
+  return `${n} half-day${n === 1 ? '' : 's'}`;
+}
+
+function leaveText(n) {
+  const v = n * 0.5;
+  return `${v === 0.5 ? '½' : String(v).replace('.5', '½')} day${v > 1 ? 's' : ''} leave`;
+}
+
+/** One-line tip on the Home screen */
+function renderPlannerTeaser() {
+  const card = $('#home-planner-card');
+  const tip = $('#home-planner-tip');
+  if (!card || !tip) return;
+  const st = store.getState();
+  const { year, month } = plannerMonth(0);
+  const plan = buildWfoPlan(year, month, st.settings, st.dailyRecords, st.activeSession);
+  card.style.display = 'flex';
+  if (plan.manual) {
+    tip.innerHTML = 'Manual target: half-days don’t change it. Tap to see next month.';
+  } else if (plan.officeNow === 0) {
+    tip.innerHTML = `Target done for ${MONTH_NAMES[month]} 🎉 Plan next month →`;
+  } else if (plan.moves.length) {
+    const m = plan.moves[0];
+    tip.innerHTML = `Take <b>${halfText(m.halves)}</b> → office <b>${plan.required} → ${m.required}</b> days`;
+  } else {
+    tip.innerHTML = `No half-day saves an office day this month. Plan next month →`;
+  }
+}
+
+/** Full planner sheet */
+function renderPlannerSheet() {
+  const body = $('#planner-body');
+  if (!body) return;
+  const st = store.getState();
+  const { year, month } = plannerMonth();
+  const plan = buildWfoPlan(year, month, st.settings, st.dailyRecords, st.activeSession);
+  $$('[data-planner-month]').forEach((b) => b.classList.toggle('active', Number(b.dataset.plannerMonth) === plannerMonthOffset));
+
+  if (plan.manual) {
+    body.innerHTML = `<div class="planner-note">Your target for ${MONTH_NAMES[month]} is a fixed <b>${plan.required} days</b> (Manual mode).
+      Holidays and leaves don't reduce it. Switch to <b>Automatic (%)</b> in Settings to use the planner.</div>`;
+    return;
+  }
+
+  const raw = Math.round(plan.raw * 100) / 100;
+  const perHalf = Math.round(0.5 * plan.pct) / 100;
+  plannerWhatIf = Math.min(Math.max(0, plannerWhatIf), plan.freeDays.length);
+  const wiReq = plan.reqWith(plannerWhatIf);
+  const wiRaw = Math.round(Math.max(0, plan.eligible - 0.5 * plannerWhatIf) * plan.pct) / 100;
+  const wiFits = plan.fits(wiReq, plannerWhatIf);
+
+  const movesHTML = plan.moves.length
+    ? plan.moves.map((m) => `
+        <button type="button" class="planner-move${m.best ? ' is-best' : ''}" data-planner-pick="${m.halves}">
+          <span class="pm-main"><b>${halfText(m.halves)}</b> → office <b>${plan.required} → ${m.required}</b></span>
+          <span class="pm-sub">${leaveText(m.halves)} · saves ${m.saved} office day${m.saved > 1 ? 's' : ''}${m.best ? ' · ⭐ best value' : ''}</span>
+        </button>`).join('')
+    : `<div class="planner-note">${plan.officeNow === 0
+        ? `🎉 You already have all ${plan.required} office days for ${MONTH_NAMES[month]}.`
+        : `No half-day can lower the target here — not enough free work days left. Try <b>Next month</b>.`}</div>`;
+
+  const ranked = rankHalfDayDates(plan, st.dailyRecords);
+  const pick = Math.max(plannerWhatIf, 0);
+  const datesHTML = ranked.slice(0, Math.max(pick, 3)).map((r, i) => `
+      <div class="planner-date${i < pick ? ' is-picked' : ''}">
+        <span><b>${plannerDateLabel(r.date)}</b><small>${r.why}</small></span>
+        <button type="button" class="btn btn-sm btn-secondary" data-planner-mark="${formatDateKey(r.date.getFullYear(), r.date.getMonth(), r.date.getDate())}">Mark ½</button>
+      </div>`).join('');
+
+  body.innerHTML = `
+    <div class="planner-now">
+      <div><span class="neo-lbl">${MONTH_NAMES[month]} target</span><b class="mono">${plan.required}</b><small>office days</small></div>
+      <div><span class="neo-lbl">Done</span><b class="mono">${plan.completed}</b><small>so far</small></div>
+      <div><span class="neo-lbl">Free days</span><b class="mono">${plan.freeDays.length}</b><small>work days left</small></div>
+    </div>
+    <p class="planner-math">${plan.eligible} × ${plan.pct}% = <b>${raw}</b> → ${plan.required}.
+      Each half-day cuts <b>${perHalf}</b>. ${plan.rawGap > 0 ? `Need <b>${Math.round(plan.rawGap * 100) / 100}</b> less to reach ${plan.required - 1}.` : ''}</p>
+
+    <h4 class="planner-h">Best moves</h4>
+    <div class="planner-moves">${movesHTML}</div>
+
+    <h4 class="planner-h">What if I take…</h4>
+    <div class="planner-whatif">
+      <button type="button" class="btn btn-icon" data-planner-step="-1" aria-label="Fewer half-days">−</button>
+      <div class="pw-mid">
+        <b class="mono">${plannerWhatIf}</b> ${plannerWhatIf === 1 ? 'half-day' : 'half-days'}
+        <small>${wiRaw} → <b>${wiReq}</b> office days · ${plannerWhatIf ? leaveText(plannerWhatIf) : 'no leave'}</small>
+      </div>
+      <button type="button" class="btn btn-icon" data-planner-step="1" aria-label="More half-days">+</button>
+    </div>
+    ${wiFits ? '' : `<div class="planner-note tone-bad">⚠️ Not enough free days: you'd need ${plan.officeLeft(wiReq)} office days but only ${plan.freeDays.length - plannerWhatIf} free days remain.</div>`}
+
+    <h4 class="planner-h">Best dates for a half-day</h4>
+    <div class="planner-dates">${datesHTML || '<div class="planner-note">No free work days left.</div>'}</div>
+    ${pick > 0 && wiFits ? `<button type="button" class="btn btn-primary btn-full" id="btn-planner-apply" style="margin-top:10px">Mark top ${halfText(pick)} as ½ leave</button>` : ''}
+
+    <p class="planner-foot">ℹ️ A half-day day is not counted as an office day. Do the other half from home, and check your company's leave rules.</p>`;
+}
+
+async function plannerMarkHalfDays(keys) {
+  const before = store.getState();
+  const { year, month } = plannerMonth();
+  const reqBefore = calculateMonthlyWfoRequirement(year, month, before.settings, before.dailyRecords).requiredDays;
+  for (const key of keys) {
+    await saveCalendarDayDetails(key, { status: 'leave-half', leaveType: 'half-day', leaveReason: 'Planned half-day' });
+  }
+  const after = store.getState();
+  const reqAfter = calculateMonthlyWfoRequirement(year, month, after.settings, after.dailyRecords).requiredDays;
+  showToast(`Marked ${keys.length} half-day${keys.length > 1 ? 's' : ''} · Required ${reqBefore} → ${reqAfter}`, 'success', 4000);
+  plannerWhatIf = 0;
+  renderPlannerSheet();
+}
+
+function setupPlannerActions() {
+  const card = $('#home-planner-card');
+  if (card) card.addEventListener('click', () => {
+    const st = store.getState();
+    const cur = plannerMonth(0);
+    const plan = buildWfoPlan(cur.year, cur.month, st.settings, st.dailyRecords, st.activeSession);
+    plannerMonthOffset = (plan.manual || plan.officeNow === 0 || !plan.moves.length) ? 1 : 0;
+    plannerWhatIf = 0;
+    renderPlannerSheet();
+    openModal('modal-planner');
+  });
+  const close = $('#btn-close-planner');
+  if (close) close.addEventListener('click', () => closeModal('modal-planner'));
+  const modal = $('#modal-planner');
+  if (!modal) return;
+  modal.addEventListener('click', async (e) => {
+    if (e.target === modal) { closeModal('modal-planner'); return; }
+    const m = e.target.closest('[data-planner-month]');
+    if (m) { plannerMonthOffset = Number(m.dataset.plannerMonth); plannerWhatIf = 0; renderPlannerSheet(); return; }
+    const stp = e.target.closest('[data-planner-step]');
+    if (stp) { plannerWhatIf += Number(stp.dataset.plannerStep); renderPlannerSheet(); return; }
+    const pk = e.target.closest('[data-planner-pick]');
+    if (pk) { plannerWhatIf = Number(pk.dataset.plannerPick); renderPlannerSheet(); return; }
+    const mk = e.target.closest('[data-planner-mark]');
+    if (mk) { await plannerMarkHalfDays([mk.dataset.plannerMark]); return; }
+    if (e.target.closest('#btn-planner-apply')) {
+      const st = store.getState();
+      const { year, month } = plannerMonth();
+      const plan = buildWfoPlan(year, month, st.settings, st.dailyRecords, st.activeSession);
+      const keys = rankHalfDayDates(plan, st.dailyRecords).slice(0, plannerWhatIf)
+        .map((r) => formatDateKey(r.date.getFullYear(), r.date.getMonth(), r.date.getDate()));
+      await plannerMarkHalfDays(keys);
+    }
+  });
+}
+
+window.WorklyPlanner = { buildWfoPlan, rankHalfDayDates };
 
 /** Fills the Home ring from the timer text (HH:MM:SS) against today's target */
 function updateHomeRing() {
@@ -2234,6 +2482,7 @@ async function initApp() {
   setupStatsActions();
   setupLocationActions();
   setupSettingsActions();
+  setupPlannerActions();
   setupServiceWorker();
 
   // 5. Subscribe UI updates to state changes

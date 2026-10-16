@@ -132,6 +132,16 @@
 
           <div id="home-pace" class="card neo-pace" style="display: none;"></div>
 
+          <!-- Smart Planner teaser -->
+          <button type="button" id="home-planner-card" class="card neo-planner-card" style="display: none;" aria-haspopup="dialog">
+            <span class="neo-planner-icon" aria-hidden="true">🧠</span>
+            <span class="neo-planner-text">
+              <span class="neo-lbl">Smart planner</span>
+              <span id="home-planner-tip">—</span>
+            </span>
+            <span class="neo-planner-go" aria-hidden="true">›</span>
+          </button>
+
           <!-- Today details (compact) -->
           <details class="card neo-today">
             <summary>
@@ -865,6 +875,21 @@
     </div>
 
     <!-- Modal: Export CSV Range Selection -->
+    <div id="modal-planner" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="title-planner">
+      <div class="bottom-sheet planner-sheet">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-header">
+          <h3 id="title-planner" class="sheet-title">🧠 Smart Planner</h3>
+          <button id="btn-close-planner" class="btn btn-icon" aria-label="Close planner">✕</button>
+        </div>
+        <div class="segmented-control planner-months" role="tablist">
+          <button type="button" class="segmented-item active" data-planner-month="0" id="planner-this-month">This month</button>
+          <button type="button" class="segmented-item" data-planner-month="1" id="planner-next-month">Next month</button>
+        </div>
+        <div id="planner-body"></div>
+      </div>
+    </div>
+
     <div id="modal-export-csv" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="title-export-csv-modal">
       <div class="bottom-sheet">
         <div class="sheet-drag-handle"></div>
