@@ -1,6 +1,6 @@
 /* Workly Service Worker - Offline Cache & PWA Support (Phase 8) */
 
-const CACHE_NAME = 'workly-cache-v3';
+const CACHE_NAME = 'workly-cache-v4';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -11,10 +11,8 @@ const ASSETS_TO_CACHE = [
   './css/variables.css',
   './css/components.css',
   './css/app.css',
+  './css/neo.css',
   './js/app.js',
-  './js/state.js',
-  './js/storage.js',
-  './js/utils.js',
   './assets/icons/icon.svg',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#9B8AFB">
+  <meta name="theme-color" content="#07090f">
   <meta name="description" content="Workly - Personal work-from-office location and time tracker">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -20,8 +20,20 @@
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/neo.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap">
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="neoRingGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" style="stop-color: var(--neo-cyan)"/>
+        <stop offset="1" style="stop-color: var(--neo-violet)"/>
+      </linearGradient>
+    </defs>
+  </svg>
   <div id="app">
 
     <!-- Toast Notification Container -->
@@ -35,9 +47,10 @@
           <path d="M128 176 L184 336 L256 224 L328 336 L384 176" fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
           <circle cx="256" cy="160" r="16" fill="#ffffff" />
         </svg>
-        <h1 class="header-title">Workly</h1>
+        <h1 class="header-title">WORKLY</h1>
       </div>
       <div class="header-actions">
+        <span id="header-date" class="neo-date"></span>
         <button id="header-theme-toggle" class="btn btn-icon" aria-label="Toggle appearance theme" title="Toggle Theme">
           <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-5.4-5.4c0-1.81.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3z"/>
@@ -51,64 +64,41 @@
 
       <!-- ================= 1. HOME SCREEN ================= -->
       <section id="view-home" class="view-screen active" role="tabpanel" aria-labelledby="tab-home">
-        <div class="page-header">
-          <h2 class="page-title">Dashboard</h2>
-          <p class="page-subtitle">Work-from-office location and time overview</p>
-        </div>
-
         <div class="dashboard-stack">
 
-          <!-- Status Hero Card -->
-          <article class="hero-card">
-            <div class="hero-card-header">
-              <span class="card-subtitle">Current Status</span>
+          <!-- Status Hero: ring timer + key times -->
+          <article class="hero-card neo-hero">
+            <div class="neo-ring" aria-hidden="false">
+              <svg viewBox="0 0 150 150" aria-hidden="true">
+                <circle class="neo-ring-track" cx="75" cy="75" r="64"/>
+                <circle id="home-ring-progress" class="neo-ring-fill" cx="75" cy="75" r="64" stroke-dasharray="402.12" stroke-dashoffset="402.12"/>
+              </svg>
+              <div class="neo-ring-center">
+                <div id="home-timer-digits" class="timer-large">00:00:00</div>
+                <div class="timer-label">of <span id="home-target-digits">06:00:00</span></div>
+              </div>
+            </div>
+
+            <div class="neo-kv">
               <span id="home-status-badge" class="badge badge-neutral">
                 <span class="badge-dot" aria-hidden="true"></span> OUTSIDE OFFICE
               </span>
+              <div class="neo-kv-row"><span>First IN</span><b id="home-today-first-in">--</b></div>
+              <div class="neo-kv-row"><span>Done at</span><b id="home-completion-time">--</b></div>
+              <div class="neo-kv-row"><span id="home-remaining-label">Remaining</span><b id="home-remaining-digits">06:00:00</b></div>
+              <div class="neo-kv-row"><span>Last OUT</span><b id="home-today-last-out">--</b></div>
             </div>
 
-            <div class="hero-status-row">
-              <div class="hero-status-left">
-                <span id="home-time-label" class="target-label">Status</span>
-                <div id="home-checkin-time" class="hero-checkin-val">Not Checked In</div>
-              </div>
-              <div class="hero-status-right">
-                <div id="home-detection-mode" class="hero-detection-pill" style="display: none;">Detected automatically</div>
-                <div id="home-gps-status-container" class="hero-gps-container">
-                  <span id="home-gps-status-indicator" class="hero-gps-text">📍 Location tracking active</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="hero-timer-block">
-              <div id="home-timer-digits" class="timer-large">00:00:00</div>
-              <div class="timer-label">WORKED TODAY</div>
-            </div>
-
-            <div class="target-split-grid">
-              <div class="target-item">
-                <span id="home-target-label" class="target-label">Target</span>
-                <span id="home-target-digits" class="target-value">06:00:00</span>
-              </div>
-              <div class="target-item" style="text-align: center;">
-                <span id="home-completion-label" class="target-label" title="Target Completion">Completion</span>
-                <span id="home-completion-time" class="target-value">--</span>
-              </div>
-              <div class="target-item" style="text-align: right;">
-                <div id="home-target-achieved-sub" style="display: none; font-size: 11px; font-weight: 600; color: var(--color-success-text); line-height: 1.2; margin-bottom: 2px;">Target achieved 00:00:00</div>
-                <span id="home-remaining-label" class="target-label">Remaining</span>
-                <span id="home-remaining-digits" class="target-value" style="color: var(--color-text-secondary);">06:00:00</span>
-              </div>
-            </div>
-
-            <!-- Target Achieved Visual State Banner -->
-            <div id="home-target-achieved-banner" class="target-achieved-banner" style="display: none; margin-top: 0.5rem; padding: 0.5rem 0.75rem; background-color: var(--color-success-subtle); border: 1px solid var(--color-success); border-radius: var(--radius-md); text-align: center;">
-              <span style="font-weight: 700; color: var(--color-success-text); font-size: var(--font-size-sm); display: flex; align-items: center; justify-content: center; gap: 0.375rem;">
-                🟢 TARGET ACHIEVED
+            <div class="neo-hero-foot">
+              <span id="home-detection-mode" class="hero-detection-pill" style="display: none;">Detected automatically</span>
+              <span id="home-gps-status-container" class="hero-gps-container">
+                <span id="home-gps-status-indicator" class="hero-gps-text">📍 Location tracking active</span>
               </span>
-              <span style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 2px; display: block;">
-                You can leave the office.
-              </span>
+            </div>
+
+            <div id="home-target-achieved-banner" class="target-achieved-banner" style="display: none;">
+              🎯 <b>Target achieved</b> · you can leave the office
+              <span id="home-target-achieved-sub" style="display: none;"></span>
             </div>
           </article>
 
@@ -122,70 +112,39 @@
             </button>
           </div>
 
-          <!-- Compact WFO Progress Summary Card -->
+          <!-- WFO Progress -->
           <article id="home-wfo-card" class="card home-wfo-card" aria-label="WFO Progress Overview">
-            <div class="home-wfo-header">
-              <span class="home-wfo-title">WFO Progress</span>
-              <span id="home-wfo-pct" class="home-wfo-pct">0%</span>
-            </div>
-            <div class="home-wfo-metrics">
-              <div class="home-wfo-stat">
-                <span id="home-wfo-completed" class="home-wfo-val">0</span>
-                <span class="home-wfo-lbl">Completed</span>
+            <div class="neo-wfo-head">
+              <div>
+                <div class="neo-lbl"><span id="home-wfo-month">This month</span> · WFO <span id="home-wfo-pct" class="home-wfo-pct">0%</span></div>
+                <div class="neo-wfo-big"><span id="home-wfo-completed">0</span><small> / <span id="home-wfo-required">0</span></small></div>
               </div>
-              <div class="home-wfo-divider" aria-hidden="true"></div>
-              <div class="home-wfo-stat">
-                <span id="home-wfo-remaining" class="home-wfo-val">0</span>
-                <span class="home-wfo-lbl">Remaining</span>
-              </div>
-              <div class="home-wfo-divider" aria-hidden="true"></div>
-              <div class="home-wfo-stat">
-                <span id="home-wfo-required" class="home-wfo-val">0</span>
-                <span class="home-wfo-lbl">Required</span>
+              <div class="neo-wfo-need">
+                <div class="neo-lbl">Need</div>
+                <div class="neo-need-val"><span id="home-wfo-remaining">0</span> <small>days</small></div>
+                <div id="home-wfo-left" class="neo-sub"></div>
               </div>
             </div>
+            <div id="home-wfo-segs" class="neo-segs" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Monthly WFO Progress"></div>
+            <div id="home-wfo-chips" class="neo-chips"></div>
             <p id="home-wfo-breakdown" class="home-wfo-breakdown"></p>
-            <div class="home-wfo-bar-bg" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Monthly WFO Progress">
-              <div id="home-wfo-progress-bar" class="home-wfo-bar-fill" style="width: 0%;"></div>
-            </div>
           </article>
 
-          <!-- Quick Status Section: Today's Status -->
-          <article class="card">
-            <div class="card-header">
-              <h3 class="card-title">Today's Status</h3>
+          <div id="home-pace" class="card neo-pace" style="display: none;"></div>
+
+          <!-- Today details (compact) -->
+          <details class="card neo-today">
+            <summary>
+              <span>Today</span>
+              <span class="neo-today-sum"><b id="home-today-worked">00h 00m</b> / <b id="home-today-target">06h 00m</b></span>
+            </summary>
+            <div class="neo-today-grid">
+              <div><span id="home-time-label">Status</span><b id="home-checkin-time">Not Checked In</b></div>
+              <div><span>WFO counted</span><span id="home-today-wfo-counted" class="badge badge-neutral">No</span></div>
+              <div><span>Target</span><span id="home-today-target-status" class="badge badge-neutral">Not achieved</span></div>
+              <div id="home-today-metric-row"><span id="home-today-metric-label">Remaining</span><b id="home-today-metric-val">06h 00m</b></div>
             </div>
-            <div class="quick-status-list">
-              <div class="quick-status-row">
-                <span>First IN</span>
-                <strong id="home-today-first-in">--</strong>
-              </div>
-              <div class="quick-status-row">
-                <span>Last OUT</span>
-                <strong id="home-today-last-out">--</strong>
-              </div>
-              <div class="quick-status-row">
-                <span>WFO Counted</span>
-                <span id="home-today-wfo-counted" class="badge badge-neutral">No</span>
-              </div>
-              <div class="quick-status-row" style="border-top: 1px dashed var(--color-border); padding-top: 0.5rem; margin-top: 0.25rem;">
-                <span>Worked</span>
-                <strong id="home-today-worked">00h 00m</strong>
-              </div>
-              <div class="quick-status-row">
-                <span>Target</span>
-                <strong id="home-today-target">06h 00m</strong>
-              </div>
-              <div class="quick-status-row">
-                <span>Target Status</span>
-                <span id="home-today-target-status" class="badge badge-neutral">Not achieved</span>
-              </div>
-              <div class="quick-status-row" id="home-today-metric-row">
-                <span id="home-today-metric-label">Remaining</span>
-                <strong id="home-today-metric-val">06h 00m</strong>
-              </div>
-            </div>
-          </article>
+          </details>
 
         </div>
       </section>
@@ -205,19 +164,18 @@
           </div>
 
           <div class="calendar-weekdays">
-            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
           </div>
 
           <!-- JavaScript generated day cells -->
           <div id="cal-days-grid" class="calendar-days-grid"></div>
 
           <div class="calendar-legend-bar">
-            <div class="legend-chip"><span class="legend-color" style="background-color: var(--color-success);"></span>Target Achieved</div>
-            <div class="legend-chip"><span class="legend-color" style="background-color: var(--color-warning);"></span>Target Missed</div>
-            <div class="legend-chip"><span class="legend-color" style="background-color: var(--primary);"></span>Holiday</div>
-            <div class="legend-chip"><span class="legend-color" style="background-color: var(--primary-dark);"></span>Full Leave</div>
-            <div class="legend-chip"><span class="legend-color" style="background-color: var(--warning);"></span>Half Leave</div>
-            <div class="legend-chip"><span class="legend-color" style="background-color: var(--color-text-muted);"></span>Normal</div>
+            <div class="legend-chip"><span class="legend-color lg-ok"></span>Target met</div>
+            <div class="legend-chip"><span class="legend-color lg-low"></span>Short</div>
+            <div class="legend-chip"><span class="legend-color lg-hol"></span>Holiday</div>
+            <div class="legend-chip"><span class="legend-color lg-lv"></span>Leave</div>
+            <div class="legend-chip"><span class="legend-color lg-half"></span>Half leave</div>
           </div>
         </article>
 
@@ -254,8 +212,15 @@
           <!-- Status & Notes Management Form -->
           <div style="margin-top: 1rem; padding-top: 0.875rem; border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 0.75rem;">
             <div class="form-group">
-              <label for="cal-status-select" class="label-text">Day Status</label>
-              <select id="cal-status-select" class="select-control">
+              <span class="label-text">Mark this day</span>
+              <div id="cal-quick-marks" class="neo-quick" role="group" aria-label="Day status">
+                <button type="button" data-mark="wfo">🏢 WFO</button>
+                <button type="button" data-mark="holiday">🎉 Holiday</button>
+                <button type="button" data-mark="leave-full">🌴 Leave</button>
+                <button type="button" data-mark="leave-half">½ Half</button>
+              </div>
+              <label for="cal-status-select" class="sr-only">Day Status</label>
+              <select id="cal-status-select" class="select-control sr-only" tabindex="-1">
                 <option value="normal">Normal</option>
                 <option value="wfo">WFO</option>
                 <option value="holiday">Holiday</option>
@@ -284,8 +249,8 @@
 
             <!-- Action buttons -->
             <div style="display: flex; gap: 0.75rem; margin-top: 0.25rem;">
-              <button type="button" id="btn-save-cal-day" class="btn btn-primary" style="flex: 2;">Save</button>
-              <button type="button" id="btn-clear-cal-day" class="btn btn-secondary" style="flex: 1;">Clear Status</button>
+              <button type="button" id="btn-save-cal-day" class="btn btn-primary" style="flex: 2;">Save · updates Home</button>
+              <button type="button" id="btn-clear-cal-day" class="btn btn-secondary" style="flex: 1;">Clear</button>
             </div>
           </div>
         </article>

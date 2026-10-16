@@ -2025,6 +2025,12 @@ function updateLiveTimerUI() {
   updateButtonStates(isUserIn);
   updateGpsStatusUI();
   updateHomeWfoProgressUI();
+  updateHomeRing();
+  const headerDate = $('#header-date');
+  if (headerDate) {
+    const d = new Date();
+    headerDate.textContent = `${['SUN','MON','TUE','WED','THU','FRI','SAT'][d.getDay()]} · ${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3).toUpperCase()}`;
+  }
 }
 
 /**
@@ -2087,12 +2093,13 @@ function updateHomeWfoProgressUI() {
       breakdownEl.textContent = `Manual target: ${requiredDays} days this month`;
     } else {
       const pct = getEffectiveWorkSettings(settings, year, month).wfoPercentage ?? 60;
-      const parts = [`${reqResult.workingDaysCount} work days`];
-      if (reqResult.holidaysCount) parts.push(`${reqResult.holidaysCount} holiday${reqResult.holidaysCount > 1 ? 's' : ''}`);
-      if (reqResult.fullLeaveCount) parts.push(`${reqResult.fullLeaveCount} leave`);
-      if (reqResult.halfLeaveCount) parts.push(`${reqResult.halfLeaveCount} half-leave`);
+      const minus = [];
+      if (reqResult.holidaysCount) minus.push(reqResult.holidaysCount);
+      if (reqResult.fullLeaveCount) minus.push(reqResult.fullLeaveCount);
+      if (reqResult.halfLeaveCount) minus.push(reqResult.halfLeaveCount === 1 ? '½' : reqResult.halfLeaveCount * 0.5);
       const raw = Math.round(reqResult.rawWfoDays * 10) / 10;
-      breakdownEl.textContent = `${parts.join(' − ')} = ${reqResult.eligibleWorkingDays} × ${pct}% = ${raw} → ${requiredDays}`;
+      const base = minus.length ? `(${[reqResult.workingDaysCount, ...minus].join(' − ')})` : `${reqResult.workingDaysCount}`;
+      breakdownEl.textContent = `${base} × ${pct}% = ${raw} → ${requiredDays} required`;
     }
   }
 
@@ -2102,6 +2109,97 @@ function updateHomeWfoProgressUI() {
   if (pctEl) pctEl.textContent = `${percentage}%`;
   if (progressBarEl) progressBarEl.style.width = `${percentage}%`;
   if (progressTrackEl) progressTrackEl.setAttribute('aria-valuenow', String(percentage));
+
+  const monthEl = $('#home-wfo-month');
+  if (monthEl) monthEl.textContent = MONTH_NAMES[month];
+
+  // Segment bar: one block per required day (falls back to a smooth bar for big targets)
+  const segsEl = $('#home-wfo-segs');
+  if (segsEl) {
+    segsEl.setAttribute('aria-valuenow', String(percentage));
+    if (requiredDays > 0 && requiredDays <= 31) {
+      segsEl.classList.remove('is-bar');
+      segsEl.style.setProperty('--segs', String(requiredDays));
+      let html = '';
+      for (let i = 0; i < requiredDays; i++) html += `<i class="${i < completedDays ? 'on' : ''}"></i>`;
+      segsEl.innerHTML = html;
+    } else {
+      segsEl.classList.add('is-bar');
+      segsEl.innerHTML = `<i class="on" style="width:${percentage}%"></i>`;
+    }
+  }
+
+  // Day counts for chips + work days still left this month
+  const effective = getEffectiveWorkSettings(settings, year, month);
+  const workingDays = effective.workingDays || [];
+  let workDays = 0, holidays = 0, leaves = 0, halves = 0, workDaysLeft = 0;
+  const todayRec = dailyRecords[todayKey];
+  const todayDone = isWfoRecord(todayRec) || (isSessionTodayWfo && !todayRec);
+  for (let dayNum = 1; dayNum <= totalDaysInMonth; dayNum++) {
+    const d = new Date(year, month, dayNum);
+    if (!isDaySelectedWorkingDay(d, workingDays)) continue;
+    workDays++;
+    const key = formatDateKey(year, month, dayNum);
+    const rec = dailyRecords[key];
+    const st = rec?.status;
+    if (st === 'holiday') holidays++;
+    else if (st === 'leave-full' || st === 'full-day-leave') leaves++;
+    else if (st === 'leave-half' || st === 'half-day-leave') halves++;
+    const blocked = st === 'holiday' || st === 'leave-full' || st === 'full-day-leave';
+    if (!blocked && (dayNum > now.getDate() || (dayNum === now.getDate() && !todayDone))) workDaysLeft++;
+  }
+
+  const chipsEl = $('#home-wfo-chips');
+  if (chipsEl) {
+    chipsEl.innerHTML = `
+      <span class="neo-chip">Work days <b>${workDays}</b></span>
+      <span class="neo-chip c-hol">Holidays <b>${holidays}</b></span>
+      <span class="neo-chip c-lv">Leave <b>${leaves}</b></span>
+      <span class="neo-chip c-half">Half <b>${halves}</b></span>`;
+  }
+
+  const leftEl = $('#home-wfo-left');
+  if (leftEl) leftEl.textContent = `${workDaysLeft} work day${workDaysLeft === 1 ? '' : 's'} left`;
+
+  // Pace tip
+  const paceEl = $('#home-pace');
+  if (paceEl) {
+    let msg = '';
+    let tone = 'warn';
+    if (requiredDays > 0 && remainingDays === 0) {
+      msg = `🎉 <span><b>${MONTH_NAMES[month]} target done!</b> Extra office days are a bonus.</span>`;
+      tone = 'ok';
+    } else if (remainingDays > workDaysLeft) {
+      msg = `⚠️ <span>Only <b>${workDaysLeft}</b> work days left for <b>${remainingDays}</b> needed. Check leaves or holidays.</span>`;
+      tone = 'bad';
+    } else if (remainingDays > 0 && remainingDays === workDaysLeft) {
+      msg = `🔥 <span>Every work day counts now: <b>${remainingDays} of ${workDaysLeft}</b> left needed.</span>`;
+      tone = 'bad';
+    } else if (remainingDays > 0) {
+      const perWeekDays = Math.max(1, workingDays.length);
+      const weeksLeft = Math.max(1, workDaysLeft / perWeekDays);
+      const perWeek = Math.min(perWeekDays, Math.ceil(remainingDays / weeksLeft));
+      msg = `⚡ <span>Go <b>${perWeek} day${perWeek === 1 ? '' : 's'}/week</b> · need ${remainingDays} of the next ${workDaysLeft} work days.</span>`;
+    }
+    paceEl.innerHTML = msg;
+    paceEl.className = `card neo-pace tone-${tone}`;
+    paceEl.style.display = msg ? 'flex' : 'none';
+  }
+}
+
+/** Fills the Home ring from the timer text (HH:MM:SS) against today's target */
+function updateHomeRing() {
+  const ring = $('#home-ring-progress');
+  const timerEl = $('#home-timer-digits');
+  if (!ring || !timerEl) return;
+  const parts = (timerEl.textContent || '0:0:0').split(':').map(Number);
+  const worked = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+  const settings = store.getState().settings || {};
+  const target = (settings.targetHoursPerWfoDay ?? settings.targetHours ?? 6) * 3600;
+  const ratio = target > 0 ? Math.min(1, worked / target) : 0;
+  const circ = 402.12;
+  ring.setAttribute('stroke-dashoffset', String(circ * (1 - ratio)));
+  ring.classList.toggle('done', ratio >= 1);
 }
 
 /* ==========================================================================
@@ -2649,6 +2747,18 @@ function setupCalendarActions() {
   if (statusSelect) {
     statusSelect.addEventListener('change', () => {
       updateCalendarFieldVisibility(statusSelect.value);
+      syncQuickMarks(statusSelect.value);
+    });
+  }
+
+  const quick = $('#cal-quick-marks');
+  if (quick && statusSelect) {
+    quick.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mark]');
+      if (!btn) return;
+      // Tap again to unmark (back to Normal)
+      statusSelect.value = statusSelect.value === btn.dataset.mark ? 'normal' : btn.dataset.mark;
+      statusSelect.dispatchEvent(new Event('change'));
     });
   }
 
@@ -2662,6 +2772,9 @@ function setupCalendarActions() {
       const leaveReason = $('#cal-input-leave-reason')?.value.trim() || '';
       const notes = $('#cal-input-notes')?.value.trim() || '';
 
+      const { settings: settingsBefore, dailyRecords: recordsBefore } = store.getState();
+      const reqBefore = calculateMonthlyWfoRequirement(calendar.year, calendar.month, settingsBefore, recordsBefore);
+
       await saveCalendarDayDetails(dateKey, {
         status: selectedStatus,
         notes: notes,
@@ -2670,7 +2783,17 @@ function setupCalendarActions() {
         leaveType: selectedStatus === 'leave-half' ? 'half-day' : selectedStatus === 'leave-full' ? 'full-day' : ''
       });
 
-      showToast(`Saved details for ${calendar.selectedDay} ${MONTH_NAMES[calendar.month]}`, 'success');
+      const after = store.getState();
+      const reqAfter = calculateMonthlyWfoRequirement(calendar.year, calendar.month, after.settings, after.dailyRecords);
+      const dayLabel = `${calendar.selectedDay} ${MONTH_NAMES[calendar.month].slice(0, 3)}`;
+      if (reqAfter.requiredDays !== reqBefore.requiredDays) {
+        showToast(`Saved ${dayLabel} · Required ${reqBefore.requiredDays} → ${reqAfter.requiredDays}`, 'success', 4000);
+      } else if (reqAfter.mode === 'percentage' && reqAfter.rawWfoDays !== reqBefore.rawWfoDays) {
+        const raw = Math.round(reqAfter.rawWfoDays * 10) / 10;
+        showToast(`Saved ${dayLabel} · Required stays ${reqAfter.requiredDays} (${raw} rounds to ${reqAfter.requiredDays})`, 'success', 4500);
+      } else {
+        showToast(`Saved ${dayLabel}`, 'success');
+      }
     });
   }
 
@@ -2746,6 +2869,14 @@ async function saveCalendarDayDetails(dateKey, details = {}) {
 window.saveCalendarDayDetails = saveCalendarDayDetails;
 window.saveDayDetails = saveCalendarDayDetails;
 
+
+function syncQuickMarks(status) {
+  $$('#cal-quick-marks [data-mark]').forEach((b) => {
+    const on = b.dataset.mark === status;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
 
 function updateCalendarFieldVisibility(status) {
   const holidayField = $('#cal-field-holiday');
@@ -4096,6 +4227,8 @@ function renderCalendarScreen(calendarState, dailyRecords = {}, settings = {}) {
 
       let statusClass = 'status-gray';
       let indicatorHTML = '';
+      const cellDate = new Date(year, month, day);
+      const extraClass = `${dateKey === getTodayDateKey() ? ' is-today' : ''}${isDaySelectedWorkingDay(cellDate, getEffectiveWorkSettings(settings, year, month).workingDays) ? '' : ' non-work'}`;
 
       if (record) {
         if (record.status === 'holiday') {
@@ -4120,7 +4253,7 @@ function renderCalendarScreen(calendarState, dailyRecords = {}, settings = {}) {
       }
 
       cellsHTML += `
-        <div class="calendar-cell ${statusClass} ${isSelected ? 'selected' : ''}" data-day="${day}" role="button" aria-label="Day ${day}">
+        <div class="calendar-cell ${statusClass}${extraClass} ${isSelected ? 'selected' : ''}" data-day="${day}" role="button" tabindex="0" aria-label="Day ${day}">
           <span>${day}</span>
           ${indicatorHTML}
         </div>
@@ -4195,6 +4328,7 @@ function renderCalendarScreen(calendarState, dailyRecords = {}, settings = {}) {
   if (notesInput) notesInput.value = selRecord?.notes || '';
 
   updateCalendarFieldVisibility(activeStatus);
+  syncQuickMarks(activeStatus);
 }
 
 /**
